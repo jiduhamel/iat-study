@@ -705,10 +705,7 @@ const jsPsych = initJsPsych({
       "</div>";
 
     setTimeout(function () {
-      const returnURL = QUALTRICS_SURVEY_URL +
-        "?Q_ResponseID=" + encodeURIComponent(RESPONSE_ID) +
-        "&" + params.toString();
-      window.location.href = returnURL;
+      window.location.href = QUALTRICS_SURVEY_URL + "?" + params.toString();
     }, 2000);
   },
 });
