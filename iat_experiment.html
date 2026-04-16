@@ -11,45 +11,46 @@
   <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css">
   <style>
     body, .jspsych-display-element, .jspsych-content-wrapper {
-      background-color: #000 !important;
-      color: #fff !important;
+      background-color: #fff !important;
+      color: #000 !important;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
     .jspsych-content { max-width: 960px; }
     .iat-word {
-      font-family: Arial, sans-serif;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 38px;
       font-weight: bold;
-      color: #fff;
+      color: #000;
     }
-    .iat-attr  { color: #00cc00; }
+    .iat-attr  { color: #005f00; }
     .iat-face  { max-height: 220px; max-width: 280px; object-fit: cover; }
     .iat-error { font-size: 90px; font-weight: bold; color: red; line-height: 1; }
     .iat-bottom {
       margin-top: 40px;
-      font-family: Arial, sans-serif;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 15px;
-      color: #aaa;
+      color: #555;
     }
     .instr-wrap {
-      font-family: Arial, sans-serif;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 18px;
       line-height: 1.65;
       max-width: 780px;
       margin: 0 auto;
       text-align: left;
-      color: #fff;
+      color: #000;
     }
     .instr-wrap h2 { text-align: center; margin-bottom: 22px; font-size: 22px; }
     .key-box {
       display: inline-block;
-      border: 2px solid #fff;
+      border: 2px solid #333;
       border-radius: 4px;
       padding: 1px 10px;
       font-family: monospace;
       font-size: 19px;
       font-weight: bold;
-      background: #222;
-      color: #fff;
+      background: #f0f0f0;
+      color: #000;
     }
     .cat-tag {
       display: inline-block;
@@ -59,7 +60,7 @@
       padding: 1px 10px;
       font-weight: bold;
     }
-    .cat-tag.attr { background: #006600; }
+    .cat-tag.attr { background: #005f00; }
     .spacebar-note {
       margin-top: 28px;
       text-align: center;
@@ -87,7 +88,7 @@ const QUALTRICS_SURVEY_URL =
   "https://maastrichtuniversity.eu.qualtrics.com/jfe/form/SV_0Aomaip2uYrqD4y";
 
 const URL_PARAMS  = new URLSearchParams(window.location.search);
-const RESPONSE_ID = URL_PARAMS.get("ResponseID") || URL_PARAMS.get("rid") || "";
+const RESPONSE_ID = URL_PARAMS.get("Q_ResponseID") || URL_PARAMS.get("ResponseID") || URL_PARAMS.get("rid") || "";
 
 // Counterbalancing: odd last digit of ResponseID => group a (compatible first)
 //                   even last digit               => group b (incompatible first)
@@ -201,11 +202,10 @@ function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
     left_category_label:  leftLbl,
     right_category_label: rightLbl,
     display_feedback:     true,
-    html_when_wrong:      `<div class="iat-error">X</div>`,
+    html_when_wrong:      `<span style="color:red;font-size:80px;font-weight:bold;display:block;text-align:center;line-height:1;margin-top:10px">X</span>`,
     trial_duration:       null,
     response_ends_trial:  true,
     post_trial_gap:       ISI_MS,
-    bottom_instructions:  `<div class="iat-bottom">Press <b>E</b> or <b>I</b>. Correct errors with the other key.</div>`,
     data: { block: blockTag },
   };
 }
@@ -366,10 +366,10 @@ function buildIAT(cfg) {
   const switchRightLabel   = compatFirst ? cfg.targetA.label   : cfg.targetB.label;
 
   // Category labels for combined blocks
-  const firstCombLeft   = [firstLeftTLabel,  "or", cfg.attrA.label];
-  const firstCombRight  = [firstRightTLabel, "or", cfg.attrB.label];
-  const secondCombLeft  = [switchLeftLabel,  "or", cfg.attrA.label];
-  const secondCombRight = [switchRightLabel, "or", cfg.attrB.label];
+  const firstCombLeft   = [firstLeftTLabel  + " or " + cfg.attrA.label];
+  const firstCombRight  = [firstRightTLabel + " or " + cfg.attrB.label];
+  const secondCombLeft  = [switchLeftLabel  + " or " + cfg.attrA.label];
+  const secondCombRight = [switchRightLabel + " or " + cfg.attrB.label];
 
   // Block tags — always identify compat vs incompat, regardless of order
   const scTag = compatFirst ? P + "_sc" : P + "_si";
@@ -541,7 +541,7 @@ const preload = {
   type:              jsPsychPreload,
   images:            [...YOUNG_FACES, ...OLD_FACES].map(f => f.src),
   show_progress_bar: true,
-  message:           "<p style='color:#fff;font-family:Arial;font-size:18px'>Loading images…</p>",
+  message:           "<p style='color:#000;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:18px'>Loading images…</p>",
   data:              { block: "preload" },
 };
 
@@ -612,14 +612,17 @@ const jsPsych = initJsPsych({
     document.body.innerHTML =
       "<div style='display:flex;flex-direction:column;align-items:center;" +
       "justify-content:center;height:100vh;" +
-      "font-family:Arial,sans-serif;font-size:22px;" +
-      "color:#fff;background:#000;'>" +
+      "font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:22px;" +
+      "color:#000;background:#fff;'>" +
       "<p>All tasks complete — thank you!</p>" +
-      "<p style='font-size:16px;color:#aaa'>Returning to the survey…</p>" +
+      "<p style='font-size:16px;color:#555'>Returning to the survey…</p>" +
       "</div>";
 
     setTimeout(function () {
-      window.location.href = QUALTRICS_SURVEY_URL + "?" + params.toString();
+      const returnURL = QUALTRICS_SURVEY_URL +
+        "?Q_ResponseID=" + encodeURIComponent(RESPONSE_ID) +
+        "&" + params.toString();
+      window.location.href = returnURL;
     }, 2000);
   },
 });
