@@ -188,13 +188,18 @@ function targetHTML(w) { return `<span class="iat-word">${w}</span>`; }
 function attrHTML(w)   { return `<span class="iat-word iat-attr">${w}</span>`; }
 function faceHTML(f)   { return `<img class="iat-face" src="${f.src}" alt="${f.alt}">`; }
 
-// Build one jsPsychIatHtml trial object.
+// Build one IAT trial as a nested timeline.
+// The main trial ends on any key (response_ends_trial: true).
+// If the response was wrong, a correction trial immediately follows showing
+// the same stimulus + X and accepting ONLY the correct key.
 function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
-  const isImage  = typeof item === "object" && item.src;
-  const stimHTML = isAttr    ? attrHTML(item)
-                 : isImage   ? faceHTML(item)
+  const isImage   = typeof item === "object" && item.src;
+  const stimHTML  = isAttr  ? attrHTML(item)
+                 : isImage  ? faceHTML(item)
                  : targetHTML(item);
-  return {
+  const correctKey = keyAssoc === "left" ? LEFT_KEY : RIGHT_KEY;
+
+  const mainTrial = {
     type:                 jsPsychIatHtml,
     stimulus:             stimHTML,
     stim_key_association: keyAssoc,
@@ -205,9 +210,34 @@ function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
     display_feedback:     true,
     html_when_wrong:      `<span style="color:red;font-size:80px;font-weight:bold;display:block;text-align:center;line-height:1;margin-top:10px">X</span>`,
     trial_duration:       null,
-    response_ends_trial:  false,
+    response_ends_trial:  true,
     post_trial_gap:       ISI_MS,
-    data: { block: blockTag },
+    data:                 { block: blockTag },
+  };
+
+  // Correction trial: re-shows the stimulus with a persistent X.
+  // Only the correct key is accepted, forcing the participant to respond correctly.
+  const correctionTrial = {
+    type:           jsPsychHtmlKeyboardResponse,
+    stimulus:       stimHTML +
+      `<div style="color:red;font-size:80px;font-weight:bold;` +
+      `text-align:center;line-height:1;margin-top:10px">X</div>`,
+    choices:        [correctKey],
+    post_trial_gap: 0,
+    data:           { block: blockTag, is_correction: true },
+  };
+
+  return {
+    timeline: [
+      mainTrial,
+      {
+        timeline: [correctionTrial],
+        conditional_function: function () {
+          const last = jsPsych.data.get().last(1).values()[0];
+          return last && last.correct === false && !last.is_correction;
+        },
+      },
+    ],
   };
 }
 
@@ -278,7 +308,7 @@ const TA = lbl => `<span class="cat-tag attr">${lbl}</span>`;
    ============================================================ */
 
 function computeDScore(allData, prefix) {
-  const byTag = tag => allData.filter(d => d.block === tag);
+  const byTag = tag => allData.filter(d => d.block === tag && !d.is_correction);
 
   const sc = byTag(prefix + "_sc");
   const lc = byTag(prefix + "_lc");
@@ -565,6 +595,11 @@ const overallIntro = instrSlide(
 // TESTING ONLY — skip button logic; remove entire block before data collection
 function doSkip() {
   if (!confirm("Skip to end and redirect to Qualtrics with partial/zero scores?")) return;
+  if (!RESPONSE_ID) {
+    console.warn("No ResponseID in URL — you opened the IAT directly instead of via Qualtrics. " +
+      "The redirect will open the survey from the beginning (consent form). " +
+      "To test the full flow, start from your Qualtrics survey and let it redirect here.");
+  }
   const allData = jsPsych.data.get().values();
   const s1 = computeDScore(allData, "iat1");
   const s2 = computeDScore(allData, "iat2");
