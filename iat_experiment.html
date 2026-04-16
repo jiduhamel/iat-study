@@ -70,6 +70,16 @@
   </style>
 </head>
 <body>
+
+<!-- TESTING ONLY — remove before data collection -->
+<button id="force-finish"
+  style="position:fixed;bottom:16px;right:16px;z-index:9999;
+         padding:8px 16px;background:#cc3300;color:#fff;border:none;
+         border-radius:6px;font-size:13px;font-family:Helvetica,Arial,sans-serif;
+         cursor:pointer;opacity:0.9;box-shadow:0 2px 6px rgba(0,0,0,0.3)">
+  &#9889; Skip to end (testing only)
+</button>
+
 <script>
 "use strict";
 
@@ -560,6 +570,40 @@ const overallIntro = instrSlide(
 /* ============================================================
    SECTION 8 — LAUNCH jsPsych
    ============================================================ */
+
+// TESTING ONLY — wire up the skip button; remove before data collection
+document.getElementById("force-finish").addEventListener("click", function () {
+  if (!confirm("Skip to end and redirect to Qualtrics with partial/zero scores?")) return;
+  const allData = jsPsych.data.get().values();
+  const s1 = computeDScore(allData, "iat1");
+  const s2 = computeDScore(allData, "iat2");
+  const s3 = computeDScore(allData, "iat3");
+  const params = new URLSearchParams({
+    conditionOrder:   GROUP === "a" ? "c-ic" : "ic-c",
+    iat1_d: s1.d, iat1_da: s1.da, iat1_db: s1.db,
+    iat1_pctCorrect: s1.pctCorrect, iat1_propRT300: s1.propRT300, iat1_exclude: s1.exclude,
+    iat1_rtCompatS: s1.rtCompatS, iat1_rtCompatL: s1.rtCompatL,
+    iat1_rtIncompatS: s1.rtIncompatS, iat1_rtIncompatL: s1.rtIncompatL,
+    iat2_d: s2.d, iat2_da: s2.da, iat2_db: s2.db,
+    iat2_pctCorrect: s2.pctCorrect, iat2_propRT300: s2.propRT300, iat2_exclude: s2.exclude,
+    iat2_rtCompatS: s2.rtCompatS, iat2_rtCompatL: s2.rtCompatL,
+    iat2_rtIncompatS: s2.rtIncompatS, iat2_rtIncompatL: s2.rtIncompatL,
+    iat3_d: s3.d, iat3_da: s3.da, iat3_db: s3.db,
+    iat3_pctCorrect: s3.pctCorrect, iat3_propRT300: s3.propRT300, iat3_exclude: s3.exclude,
+    iat3_rtCompatS: s3.rtCompatS, iat3_rtCompatL: s3.rtCompatL,
+    iat3_rtIncompatS: s3.rtIncompatS, iat3_rtIncompatL: s3.rtIncompatL,
+  });
+  document.body.innerHTML =
+    "<div style='display:flex;flex-direction:column;align-items:center;" +
+    "justify-content:center;height:100vh;" +
+    "font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:22px;" +
+    "color:#000;background:#fff;'>" +
+    "<p>Skipping to survey… (testing mode)</p></div>";
+  setTimeout(function () {
+    window.location.href = QUALTRICS_SURVEY_URL +
+      "?Q_ResponseID=" + encodeURIComponent(RESPONSE_ID) + "&" + params.toString();
+  }, 1000);
+});
 
 const jsPsych = initJsPsych({
   show_progress_bar:    true,
