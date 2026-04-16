@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IAT Experiment</title>
+  <script src="https://unpkg.com/jspsych@7.3.4"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-iat-html@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
+  <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css">
+  <style>
+    body, .jspsych-display-element, .jspsych-content-wrapper {
+      background-color: #000 !important;
+      color: #fff !important;
+    }
+    .jspsych-content { max-width: 960px; }
+    .iat-word {
+      font-family: Arial, sans-serif;
+      font-size: 38px;
+      font-weight: bold;
+      color: #fff;
+    }
+    .iat-attr  { color: #00cc00; }
+    .iat-face  { max-height: 220px; max-width: 280px; object-fit: cover; }
+    .iat-error { font-size: 90px; font-weight: bold; color: red; line-height: 1; }
+    .iat-bottom {
+      margin-top: 40px;
+      font-family: Arial, sans-serif;
+      font-size: 15px;
+      color: #aaa;
+    }
+    .instr-wrap {
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.65;
+      max-width: 780px;
+      margin: 0 auto;
+      text-align: left;
+      color: #fff;
+    }
+    .instr-wrap h2 { text-align: center; margin-bottom: 22px; font-size: 22px; }
+    .key-box {
+      display: inline-block;
+      border: 2px solid #fff;
+      border-radius: 4px;
+      padding: 1px 10px;
+      font-family: monospace;
+      font-size: 19px;
+      font-weight: bold;
+      background: #222;
+      color: #fff;
+    }
+    .cat-tag {
+      display: inline-block;
+      background: #004080;
+      color: #fff;
+      border-radius: 4px;
+      padding: 1px 10px;
+      font-weight: bold;
+    }
+    .cat-tag.attr { background: #006600; }
+    .spacebar-note {
+      margin-top: 28px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 19px;
+    }
+  </style>
+</head>
+<body>
+<script>
+"use strict";
+
+/* ============================================================
+   SECTION 1 — QUALTRICS INTEGRATION
+   ============================================================
+   Variables returned per IAT (prefix iat1_ / iat2_ / iat3_):
+     d, da, db, pctCorrect, propRT300, exclude,
+     rtCompatS, rtCompatL, rtIncompatS, rtIncompatL
+   Also: ResponseID, conditionOrder (c-ic or ic-c).
+   In Qualtrics > Survey Flow > Embedded Data, add each field
+   and set source to "Set from Survey URL".
+   ============================================================ */
+
+const QUALTRICS_SURVEY_URL =
+  "https://maastrichtuniversity.eu.qualtrics.com/jfe/form/SV_0Aomaip2uYrqD4y";
+
+const URL_PARAMS  = new URLSearchParams(window.location.search);
+const RESPONSE_ID = URL_PARAMS.get("ResponseID") || URL_PARAMS.get("rid") || "";
+
+// Counterbalancing: odd last digit of ResponseID => group a (compatible first)
+//                   even last digit               => group b (incompatible first)
+// Mirrors Inquisit odd/even groupnumber logic.
+const lastDigit = parseInt(RESPONSE_ID.slice(-1));
+const GROUP = isNaN(lastDigit)
+  ? (Math.random() < 0.5 ? "a" : "b")
+  : (lastDigit % 2 === 1   ? "a" : "b");
+
+
+/* ============================================================
+   SECTION 2 — STIMULI  (matched exactly to Inquisit files)
+   ============================================================ */
+
+// ── IAT 1: Age IAT  (ageiat_stimuli_inc.iqjs) ────────────────────────
+// targetA = Young (LEFT in compatible); targetB = Old (RIGHT in compatible)
+// attrA   = Good;  attrB = Bad
+const AGE_TARGET_A_LABEL = "Young";
+const AGE_TARGET_B_LABEL = "Old";
+const AGE_ATTR_A_LABEL   = "Good";
+const AGE_ATTR_B_LABEL   = "Bad";
+
+const YOUNG_FACES = [
+  { src: "images/young_f1.jpg", alt: "Young face 1" },
+  { src: "images/young_f2.jpg", alt: "Young face 2" },
+  { src: "images/young_f3.jpg", alt: "Young face 3" },
+  { src: "images/young_f4.jpg", alt: "Young face 4" },
+  { src: "images/young_f5.jpg", alt: "Young face 5" },
+  { src: "images/young_f6.jpg", alt: "Young face 6" },
+];
+const OLD_FACES = [
+  { src: "images/old_f1.jpg", alt: "Older face 1" },
+  { src: "images/old_f2.jpg", alt: "Older face 2" },
+  { src: "images/old_f3.jpg", alt: "Older face 3" },
+  { src: "images/old_f4.jpg", alt: "Older face 4" },
+  { src: "images/old_f5.jpg", alt: "Older face 5" },
+  { src: "images/old_f6.jpg", alt: "Older face 6" },
+];
+// 8 attribute words each — matched to ageiat_stimuli_inc.iqjs
+const AGE_ATTR_A = ["Joy", "Love", "Peace", "Wonderful", "Pleasure", "Glorious", "Laughter", "Happy"];
+const AGE_ATTR_B = ["Agony", "Terrible", "Horrible", "Nasty", "Evil", "Awful", "Failure", "Hurt"];
+
+// ── IAT 2: Future Self IAT  (futureselfiat_stimuli_inc.iqjs) ─────────
+// targetA = Current Self (LEFT); targetB = Future Self (RIGHT)
+// attrA   = Pleasant;  attrB = Unpleasant
+const FS_TARGET_A_LABEL = "Current Self";
+const FS_TARGET_B_LABEL = "Future Self";
+const FS_ATTR_A_LABEL   = "Pleasant";
+const FS_ATTR_B_LABEL   = "Unpleasant";
+
+const CURRENT_SELF = ["Current Me", "My Present Self", "Myself now", "Who I Am Now", "My Current Self"];
+const FUTURE_SELF  = ["Future Me", "My Future Self", "Myself later", "Me in 30 years", "Older Self"];
+const FS_ATTR_A    = ["Joy", "Warmth", "Gold", "Happy", "Smile", "Pleasure"];
+const FS_ATTR_B    = ["Gloom", "Agony", "Pain", "Stink", "Filth", "Death"];
+
+// ── IAT 3: Self-Esteem IAT  (selfesteemiat_stimuli_inc.iqjs) ─────────
+// targetA = Self (LEFT); targetB = Other (RIGHT)
+// attrA   = Pleasant;  attrB = Unpleasant  (same words as IAT 2)
+const SE_TARGET_A_LABEL = "Self";
+const SE_TARGET_B_LABEL = "Other";
+const SE_ATTR_A_LABEL   = "Pleasant";
+const SE_ATTR_B_LABEL   = "Unpleasant";
+
+const SELF_WORDS  = ["I", "Me", "My", "Mine", "Self"];
+const OTHER_WORDS = ["They", "Them", "Their", "Theirs", "Others"];
+const SE_ATTR_A   = FS_ATTR_A;
+const SE_ATTR_B   = FS_ATTR_B;
+
+
+/* ============================================================
+   SECTION 3 — UTILITIES
+   ============================================================ */
+
+const LEFT_KEY  = "e";
+const RIGHT_KEY = "i";
+const ISI_MS    = 250;   // inter-stimulus interval (Inquisit default: isi = 250)
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Cycle through arr in random order (no replacement within each cycle)
+// to fill exactly n slots — mirrors Inquisit random() selection behaviour.
+function fillN(arr, n) {
+  const out = [];
+  while (out.length < n) out.push(...shuffle(arr));
+  return out.slice(0, n);
+}
+
+function targetHTML(w) { return `<span class="iat-word">${w}</span>`; }
+function attrHTML(w)   { return `<span class="iat-word iat-attr">${w}</span>`; }
+function faceHTML(f)   { return `<img class="iat-face" src="${f.src}" alt="${f.alt}">`; }
+
+// Build one jsPsychIatHtml trial object.
+function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
+  const isImage  = typeof item === "object" && item.src;
+  const stimHTML = isAttr    ? attrHTML(item)
+                 : isImage   ? faceHTML(item)
+                 : targetHTML(item);
+  return {
+    type:                 jsPsychIatHtml,
+    stimulus:             stimHTML,
+    stim_key_association: keyAssoc,
+    left_category_key:    LEFT_KEY,
+    right_category_key:   RIGHT_KEY,
+    left_category_label:  leftLbl,
+    right_category_label: rightLbl,
+    display_feedback:     true,
+    html_when_wrong:      `<div class="iat-error">X</div>`,
+    trial_duration:       null,
+    response_ends_trial:  true,
+    post_trial_gap:       ISI_MS,
+    bottom_instructions:  `<div class="iat-bottom">Press <b>E</b> or <b>I</b>. Correct errors with the other key.</div>`,
+    data: { block: blockTag },
+  };
+}
+
+// Single-category block (target-only or attribute-only practice).
+// Returns n shuffled trials.
+function makeSingleBlock(leftItems, rightItems, isAttr, leftLbl, rightLbl, blockTag, n) {
+  const left  = fillN(leftItems,  Math.ceil(n / 2)).map(i => makeTrial(i, isAttr, "left",  leftLbl, rightLbl, blockTag));
+  const right = fillN(rightItems, Math.floor(n / 2)).map(i => makeTrial(i, isAttr, "right", leftLbl, rightLbl, blockTag));
+  return shuffle([...left, ...right]);
+}
+
+// Combined (double-category) block with strict attr->target alternation.
+// Matches Inquisit: even trial positions = attributes, odd = targets
+// (counting from 1 after the instruction slide).
+// n must be even; half the trials are attributes, half are targets.
+function makeCombinedBlock(leftTargets, rightTargets, leftAttrs, rightAttrs,
+                           leftLbl, rightLbl, blockTag, n) {
+  const half = n / 2;
+
+  const attrPool = shuffle([
+    ...fillN(leftAttrs,  Math.ceil(half / 2)).map(i => makeTrial(i, true,  "left",  leftLbl, rightLbl, blockTag)),
+    ...fillN(rightAttrs, Math.floor(half / 2)).map(i => makeTrial(i, true,  "right", leftLbl, rightLbl, blockTag)),
+  ]);
+  const targetPool = shuffle([
+    ...fillN(leftTargets,  Math.ceil(half / 2)).map(i => makeTrial(i, false, "left",  leftLbl, rightLbl, blockTag)),
+    ...fillN(rightTargets, Math.floor(half / 2)).map(i => makeTrial(i, false, "right", leftLbl, rightLbl, blockTag)),
+  ]);
+
+  // Interleave: attr, target, attr, target …
+  const result = [];
+  for (let i = 0; i < half; i++) result.push(attrPool[i], targetPool[i]);
+  return result;
+}
+
+// Instruction slide (advances on spacebar).
+function instrSlide(html) {
+  return {
+    type:     jsPsychHtmlKeyboardResponse,
+    stimulus: `<div class="instr-wrap">${html}</div>`,
+    choices:  [" "],
+    data:     { block: "instructions" },
+  };
+}
+
+// Styled helpers for instruction text
+const K  = k   => `<span class="key-box">${k.toUpperCase()}</span>`;
+const TT = lbl => `<span class="cat-tag">${lbl}</span>`;
+const TA = lbl => `<span class="cat-tag attr">${lbl}</span>`;
+
+
+/* ============================================================
+   SECTION 4 — D-SCORE CALCULATOR
+   ============================================================
+   Two-part improved D algorithm (Greenwald, Nosek & Banaji, 2003):
+     da = (M_incompat_short - M_compat_short) / SD_pooled_short
+     db = (M_incompat_long  - M_compat_long)  / SD_pooled_long
+     d  = (da + db) / 2
+
+   SD_pooled_short = SD of all valid RTs in compat-short + incompat-short
+   SD_pooled_long  = SD of all valid RTs in compat-long  + incompat-long
+
+   Valid = RT <= 10 000 ms (excluded from D-score only).
+   propRT300 = proportion of ALL test-block trials with RT < 300 ms.
+   excludeCriteriaMet = 1 if propRT300 > 0.10 (Greenwald et al. 2003 p.214).
+
+   D-score interpretation (same thresholds as Inquisit output):
+     |d| >= 0.65 => strong;  >= 0.35 => moderate;  >= 0.15 => slight
+   ============================================================ */
+
+function computeDScore(allData, prefix) {
+  const byTag = tag => allData.filter(d => d.block === tag);
+
+  const sc = byTag(prefix + "_sc");
+  const lc = byTag(prefix + "_lc");
+  const si = byTag(prefix + "_si");
+  const li = byTag(prefix + "_li");
+  const all4 = [...sc, ...lc, ...si, ...li];
+
+  // propRT300: ALL test-block trials, no RT ceiling
+  const propRT300 = all4.length > 0
+    ? all4.filter(d => d.rt < 300).length / all4.length : 0;
+
+  // Exclude RT > 10 000 ms for D-score
+  const valid = trials => trials.filter(d => d.rt !== null && d.rt <= 10000);
+  const scV = valid(sc), lcV = valid(lc), siV = valid(si), liV = valid(li);
+
+  function mean(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
+
+  function pooledSD(a, b) {
+    const combined = [...a, ...b];
+    if (combined.length < 2) return 1;
+    const m = mean(combined);
+    return Math.sqrt(combined.reduce((s, x) => s + (x - m) * (x - m), 0) / combined.length) || 1;
+  }
+
+  const scRTs = scV.map(d => d.rt), siRTs = siV.map(d => d.rt);
+  const lcRTs = lcV.map(d => d.rt), liRTs = liV.map(d => d.rt);
+
+  const sda = pooledSD(scRTs, siRTs);
+  const sdb = pooledSD(lcRTs, liRTs);
+  const da  = (mean(siRTs) - mean(scRTs)) / sda;
+  const db  = (mean(liRTs) - mean(lcRTs)) / sdb;
+  const d   = (da + db) / 2;
+
+  const allValid   = [...scV, ...lcV, ...siV, ...liV];
+  const pctCorrect = allValid.length
+    ? allValid.filter(t => t.correct).length / allValid.length * 100 : 0;
+
+  return {
+    d:           +d.toFixed(3),
+    da:          +da.toFixed(3),
+    db:          +db.toFixed(3),
+    pctCorrect:  +pctCorrect.toFixed(1),
+    propRT300:   +propRT300.toFixed(3),
+    exclude:     propRT300 > 0.10 ? 1 : 0,
+    rtCompatS:   +mean(scRTs).toFixed(0),
+    rtCompatL:   +mean(lcRTs).toFixed(0),
+    rtIncompatS: +mean(siRTs).toFixed(0),
+    rtIncompatL: +mean(liRTs).toFixed(0),
+  };
+}
+
+
+/* ============================================================
+   SECTION 5 — IAT TIMELINE BUILDER
+   ============================================================
+   Block structure (matched to Inquisit iat_inc.iqjs / pictureiat_inc.iqjs):
+
+   Group a — compatible first (odd ResponseID):
+     B1  Target practice          20 trials  targetA=LEFT
+     B2  Attribute practice       20 trials
+     B3  Compat short test        20 trials  tag: _sc
+         [instruction slide]
+     B5  Compat long test         40 trials  tag: _lc
+     B6  Target switch practice   20 trials  targetB=LEFT
+     B7  Incompat short test      20 trials  tag: _si
+         [instruction slide]
+     B9  Incompat long test       40 trials  tag: _li
+
+   Group b — incompatible first (even ResponseID): same structure,
+   sides and _sc/_si / _lc/_li tags swapped.
+   ============================================================ */
+
+function buildIAT(cfg) {
+  const P           = cfg.name;
+  const compatFirst = cfg.group === "a";
+
+  // Side assignment depends on group
+  const firstLeftTargets  = compatFirst ? cfg.targetA.stimuli : cfg.targetB.stimuli;
+  const firstRightTargets = compatFirst ? cfg.targetB.stimuli : cfg.targetA.stimuli;
+  const firstLeftTLabel   = compatFirst ? cfg.targetA.label   : cfg.targetB.label;
+  const firstRightTLabel  = compatFirst ? cfg.targetB.label   : cfg.targetA.label;
+
+  const switchLeftTargets  = compatFirst ? cfg.targetB.stimuli : cfg.targetA.stimuli;
+  const switchRightTargets = compatFirst ? cfg.targetA.stimuli : cfg.targetB.stimuli;
+  const switchLeftLabel    = compatFirst ? cfg.targetB.label   : cfg.targetA.label;
+  const switchRightLabel   = compatFirst ? cfg.targetA.label   : cfg.targetB.label;
+
+  // Category labels for combined blocks
+  const firstCombLeft   = [firstLeftTLabel,  "or", cfg.attrA.label];
+  const firstCombRight  = [firstRightTLabel, "or", cfg.attrB.label];
+  const secondCombLeft  = [switchLeftLabel,  "or", cfg.attrA.label];
+  const secondCombRight = [switchRightLabel, "or", cfg.attrB.label];
+
+  // Block tags — always identify compat vs incompat, regardless of order
+  const scTag = compatFirst ? P + "_sc" : P + "_si";
+  const lcTag = compatFirst ? P + "_lc" : P + "_li";
+  const siTag = compatFirst ? P + "_si" : P + "_sc";
+  const liTag = compatFirst ? P + "_li" : P + "_lc";
+
+  const tl = [];
+
+  // ── IAT intro ────────────────────────────────────────────────────────────
+  tl.push(instrSlide(
+    "<h2>Task " + cfg.num + " of 3</h2>" +
+    "<p>Sort words and pictures into categories using " +
+    K("e") + " (left hand) and " + K("i") + " (right hand) as fast as possible.</p>" +
+    "<p>If you press the wrong key an " +
+    "<span style='color:red;font-weight:bold'>X</span> appears — " +
+    "press the other key to continue.</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to begin.</p>"
+  ));
+
+  // ── B1: Target practice (20 trials) ──────────────────────────────────────
+  tl.push(instrSlide(
+    "<h2>Block 1 of 7 — Practice</h2>" +
+    "<p>" + K("e") + " = " + TT(firstLeftTLabel) +
+    " &nbsp;&nbsp;&nbsp; " +
+    K("i") + " = " + TT(firstRightTLabel) + "</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+  ));
+  tl.push(...makeSingleBlock(
+    firstLeftTargets, firstRightTargets, false,
+    [firstLeftTLabel], [firstRightTLabel],
+    P + "_b1", 20
+  ));
+
+  // ── B2: Attribute practice (20 trials) ───────────────────────────────────
+  tl.push(instrSlide(
+    "<h2>Block 2 of 7 — Practice</h2>" +
+    "<p>" + K("e") + " = " + TA(cfg.attrA.label) +
+    " &nbsp;&nbsp;&nbsp; " +
+    K("i") + " = " + TA(cfg.attrB.label) + "</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+  ));
+  tl.push(...makeSingleBlock(
+    cfg.attrA.words, cfg.attrB.words, true,
+    [cfg.attrA.label], [cfg.attrB.label],
+    P + "_b2", 20
+  ));
+
+  // ── B3: First combined short test (20 trials) — D-score ──────────────────
+  tl.push(instrSlide(
+    "<h2>Block 3 of 7 — Combined (practice)</h2>" +
+    "<p>" + K("e") + " = " + TT(firstLeftTLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
+    " &nbsp;&nbsp;&nbsp; " +
+    K("i") + " = " + TT(firstRightTLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+  ));
+  tl.push(...makeCombinedBlock(
+    firstLeftTargets, firstRightTargets, cfg.attrA.words, cfg.attrB.words,
+    firstCombLeft, firstCombRight, scTag, 20
+  ));
+
+  // ── Instruction between B3 and B5 (Inquisit block 4) ─────────────────────
+  tl.push(instrSlide(
+    "<h2>Block 4 of 7 — Combined (test)</h2>" +
+    "<p>Same pairings — keep going!</p>" +
+    "<p>" + K("e") + " = " + TT(firstLeftTLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
+    " &nbsp;&nbsp;&nbsp; " +
+    K("i") + " = " + TT(firstRightTLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+  ));
+
+  // ── B5: First combined long test (40 trials) — D-score ───────────────────
+  tl.push(...makeCombinedBlock(
+    firstLeftTargets, firstRightTargets, cfg.attrA.words, cfg.attrB.words,
+    firstCombLeft, firstCombRight, lcTag, 40
+  ));
+
+  // ── B6: Target switch practice (20 trials) ───────────────────────────────
+  tl.push(instrSlide(
+    "<h2>Block 5 of 7 — Practice (key switch!)</h2>" +
+    "<p><strong>The sides have swapped — pay attention!</strong></p>" +
+    "<p>" + K("e") + " = " + TT(switchLeftLabel) +
+    " &nbsp;&nbsp;&nbsp; " +
+    K("i") + " = " + TT(switchRightLabel) + "</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+  ));
+  tl.push(...makeSingleBlock(
+    switchLeftTargets, switchRightTargets, false,
+    [switchLeftLabel], [switchRightLabel],
+    P + "_b6", 20
+  ));
+
+  // ── B7: Second combined short test (20 trials) — D-score ─────────────────
+  tl.push(instrSlide(
+    "<h2>Block 6 of 7 — Combined (practice, switched)</h2>" +
+    "<p>" + K("e") + " = " + TT(switchLeftLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
+    " &nbsp;&nbsp;&nbsp; " +
+    K("i") + " = " + TT(switchRightLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+  ));
+  tl.push(...makeCombinedBlock(
+    switchLeftTargets, switchRightTargets, cfg.attrA.words, cfg.attrB.words,
+    secondCombLeft, secondCombRight, siTag, 20
+  ));
+
+  // ── Instruction between B7 and B9 (Inquisit block 8) ─────────────────────
+  tl.push(instrSlide(
+    "<h2>Block 7 of 7 — Combined (test, switched)</h2>" +
+    "<p>Same pairings — go as fast as you can!</p>" +
+    "<p>" + K("e") + " = " + TT(switchLeftLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
+    " &nbsp;&nbsp;&nbsp; " +
+    K("i") + " = " + TT(switchRightLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
+    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+  ));
+
+  // ── B9: Second combined long test (40 trials) — D-score ──────────────────
+  tl.push(...makeCombinedBlock(
+    switchLeftTargets, switchRightTargets, cfg.attrA.words, cfg.attrB.words,
+    secondCombLeft, secondCombRight, liTag, 40
+  ));
+
+  // ── Between-IAT break ─────────────────────────────────────────────────────
+  if (cfg.num < 3) {
+    tl.push(instrSlide(
+      "<h2>Task " + cfg.num + " complete!</h2>" +
+      "<p>You may take a short break.</p>" +
+      "<p>Task " + (cfg.num + 1) + " starts when you press SPACEBAR.</p>"
+    ));
+  }
+
+  return tl;
+}
+
+
+/* ============================================================
+   SECTION 6 — IAT CONFIGURATIONS
+   ============================================================ */
+
+const IAT1 = {
+  name: "iat1", num: 1, group: GROUP,
+  targetA: { label: AGE_TARGET_A_LABEL, stimuli: YOUNG_FACES },
+  targetB: { label: AGE_TARGET_B_LABEL, stimuli: OLD_FACES   },
+  attrA:   { label: AGE_ATTR_A_LABEL,   words:   AGE_ATTR_A  },
+  attrB:   { label: AGE_ATTR_B_LABEL,   words:   AGE_ATTR_B  },
+};
+
+const IAT2 = {
+  name: "iat2", num: 2, group: GROUP,
+  targetA: { label: FS_TARGET_A_LABEL, stimuli: CURRENT_SELF },
+  targetB: { label: FS_TARGET_B_LABEL, stimuli: FUTURE_SELF  },
+  attrA:   { label: FS_ATTR_A_LABEL,   words:   FS_ATTR_A    },
+  attrB:   { label: FS_ATTR_B_LABEL,   words:   FS_ATTR_B    },
+};
+
+const IAT3 = {
+  name: "iat3", num: 3, group: GROUP,
+  targetA: { label: SE_TARGET_A_LABEL, stimuli: SELF_WORDS  },
+  targetB: { label: SE_TARGET_B_LABEL, stimuli: OTHER_WORDS },
+  attrA:   { label: SE_ATTR_A_LABEL,   words:   SE_ATTR_A   },
+  attrB:   { label: SE_ATTR_B_LABEL,   words:   SE_ATTR_B   },
+};
+
+
+/* ============================================================
+   SECTION 7 — PRELOAD + OVERALL INTRODUCTION
+   ============================================================ */
+
+const preload = {
+  type:              jsPsychPreload,
+  images:            [...YOUNG_FACES, ...OLD_FACES].map(f => f.src),
+  show_progress_bar: true,
+  message:           "<p style='color:#fff;font-family:Arial;font-size:18px'>Loading images…</p>",
+  data:              { block: "preload" },
+};
+
+const overallIntro = instrSlide(
+  "<h2 style='text-align:center'>Welcome</h2>" +
+  "<p>This session contains <strong>three tasks</strong> (Implicit Association Tests).</p>" +
+  "<p>Each task asks you to sort words and pictures into categories as quickly as possible " +
+  "using the " + K("e") + " (left) and " + K("i") + " (right) keys.</p>" +
+  "<p>Speed is important — work as fast as you can while keeping errors low.</p>" +
+  "<p>The session takes approximately <strong>15–20 minutes</strong>. " +
+  "Sit in a quiet place without distractions.</p>" +
+  "<p class='spacebar-note'>Press SPACEBAR to begin.</p>"
+);
+
+
+/* ============================================================
+   SECTION 8 — LAUNCH jsPsych
+   ============================================================ */
+
+const jsPsych = initJsPsych({
+  show_progress_bar:    true,
+  message_progress_bar: "Progress",
+  on_finish: function () {
+    const allData = jsPsych.data.get().values();
+
+    const s1 = computeDScore(allData, "iat1");
+    const s2 = computeDScore(allData, "iat2");
+    const s3 = computeDScore(allData, "iat3");
+
+    const params = new URLSearchParams({
+      ResponseID:       RESPONSE_ID,
+      conditionOrder:   GROUP === "a" ? "c-ic" : "ic-c",
+
+      iat1_d:           s1.d,
+      iat1_da:          s1.da,
+      iat1_db:          s1.db,
+      iat1_pctCorrect:  s1.pctCorrect,
+      iat1_propRT300:   s1.propRT300,
+      iat1_exclude:     s1.exclude,
+      iat1_rtCompatS:   s1.rtCompatS,
+      iat1_rtCompatL:   s1.rtCompatL,
+      iat1_rtIncompatS: s1.rtIncompatS,
+      iat1_rtIncompatL: s1.rtIncompatL,
+
+      iat2_d:           s2.d,
+      iat2_da:          s2.da,
+      iat2_db:          s2.db,
+      iat2_pctCorrect:  s2.pctCorrect,
+      iat2_propRT300:   s2.propRT300,
+      iat2_exclude:     s2.exclude,
+      iat2_rtCompatS:   s2.rtCompatS,
+      iat2_rtCompatL:   s2.rtCompatL,
+      iat2_rtIncompatS: s2.rtIncompatS,
+      iat2_rtIncompatL: s2.rtIncompatL,
+
+      iat3_d:           s3.d,
+      iat3_da:          s3.da,
+      iat3_db:          s3.db,
+      iat3_pctCorrect:  s3.pctCorrect,
+      iat3_propRT300:   s3.propRT300,
+      iat3_exclude:     s3.exclude,
+      iat3_rtCompatS:   s3.rtCompatS,
+      iat3_rtCompatL:   s3.rtCompatL,
+      iat3_rtIncompatS: s3.rtIncompatS,
+      iat3_rtIncompatL: s3.rtIncompatL,
+    });
+
+    document.body.innerHTML =
+      "<div style='display:flex;flex-direction:column;align-items:center;" +
+      "justify-content:center;height:100vh;" +
+      "font-family:Arial,sans-serif;font-size:22px;" +
+      "color:#fff;background:#000;'>" +
+      "<p>All tasks complete — thank you!</p>" +
+      "<p style='font-size:16px;color:#aaa'>Returning to the survey…</p>" +
+      "</div>";
+
+    setTimeout(function () {
+      window.location.href = QUALTRICS_SURVEY_URL + "?" + params.toString();
+    }, 2000);
+  },
+});
+
+jsPsych.run([
+  preload,
+  overallIntro,
+  ...buildIAT(IAT1),
+  ...buildIAT(IAT2),
+  ...buildIAT(IAT3),
+  {
+    type:           jsPsychHtmlKeyboardResponse,
+    stimulus:       "<p style='font-family:Arial;font-size:22px;color:#fff'>All done! Saving results…</p>",
+    trial_duration: 1500,
+    choices:        "NO_KEYS",
+    data:           { block: "end" },
+  },
+]);
+</script>
+</body>
+</html>
