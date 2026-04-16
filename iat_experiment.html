@@ -324,7 +324,25 @@ const TA = lbl => `<span class="cat-tag attr">${lbl}</span>`;
    ============================================================ */
 
 function computeDScore(allData, prefix) {
-  const byTag = tag => allData.filter(d => d.block === tag && !d.is_correction);
+  // Inquisit records a single latency per trial = time from stimulus onset to the
+  // CORRECT response. For error trials this means: wrong-key RT + correction RT
+  // (the trial stays open until the correct key is pressed).
+  // We replicate that by folding each correction trial's RT back into the preceding
+  // error trial before doing any further analysis.
+  const mergedData = [];
+  for (let i = 0; i < allData.length; i++) {
+    const t = allData[i];
+    if (t.is_correction) continue;                        // will be handled below
+    if (t.correct === false &&
+        i + 1 < allData.length && allData[i + 1].is_correction) {
+      // combine: initial wrong-press RT + correction-press RT
+      mergedData.push({ ...t, rt: t.rt + allData[i + 1].rt });
+    } else {
+      mergedData.push(t);
+    }
+  }
+
+  const byTag = tag => mergedData.filter(d => d.block === tag);
 
   const sc = byTag(prefix + "_sc");
   const lc = byTag(prefix + "_lc");
