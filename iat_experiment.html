@@ -215,15 +215,23 @@ function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
     data:                 { block: blockTag },
   };
 
-  // Correction trial: re-shows the stimulus with a persistent X.
+  // Correction trial: same layout as the IAT (labels in corners + stimulus + X).
   // Only the correct key is accepted, forcing the participant to respond correctly.
+  const LBL  = s => `<span style="font-family:monospace;display:inline-block;border:2px solid #333;` +
+                    `border-radius:3px;padding:1px 8px;background:#f0f0f0;font-size:16px">${s}</span>`;
   const correctionTrial = {
-    type:           jsPsychHtmlKeyboardResponse,
-    stimulus:       stimHTML +
-      `<div style="color:red;font-size:80px;font-weight:bold;` +
-      `text-align:center;line-height:1;margin-top:10px">X</div>`,
+    type:    jsPsychHtmlKeyboardResponse,
+    stimulus:
+      `<div style="position:fixed;top:16px;left:16px;text-align:left;` +
+      `font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:17px;font-weight:bold;color:#000">` +
+      `${LBL("E")}<br>${leftLbl.join("<br>")}</div>` +
+      `<div style="position:fixed;top:16px;right:16px;text-align:right;` +
+      `font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:17px;font-weight:bold;color:#000">` +
+      `${LBL("I")}<br>${rightLbl.join("<br>")}</div>` +
+      stimHTML +
+      `<div style="color:red;font-size:80px;font-weight:bold;text-align:center;line-height:1;margin-top:10px">X</div>`,
     choices:        [correctKey],
-    post_trial_gap: 0,
+    post_trial_gap: ISI_MS,
     data:           { block: blockTag, is_correction: true },
   };
 
