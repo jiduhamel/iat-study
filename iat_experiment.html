@@ -199,9 +199,14 @@ function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
                  : targetHTML(item);
   const correctKey = keyAssoc === "left" ? LEFT_KEY : RIGHT_KEY;
 
+  const errorReminder =
+    `<div style="position:fixed;bottom:10px;left:0;right:0;text-align:center;` +
+    `font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;color:#888;">` +
+    `If you make an error, a red X will appear. Press the other key to continue.</div>`;
+
   const mainTrial = {
     type:                 jsPsychIatHtml,
-    stimulus:             stimHTML,
+    stimulus:             stimHTML + errorReminder,
     stim_key_association: keyAssoc,
     left_category_key:    LEFT_KEY,
     right_category_key:   RIGHT_KEY,
@@ -404,11 +409,32 @@ function buildIAT(cfg) {
   const switchLeftLabel    = compatFirst ? cfg.targetB.label   : cfg.targetA.label;
   const switchRightLabel   = compatFirst ? cfg.targetA.label   : cfg.targetB.label;
 
+  // Attribute labels rendered in green — matches Inquisit txColor = green for attributes
+  const attrALbl = ['<span style="color:#005f00;font-weight:bold">' + cfg.attrA.label + '</span>'];
+  const attrBLbl = ['<span style="color:#005f00;font-weight:bold">' + cfg.attrB.label + '</span>'];
+
   // Category labels for combined blocks
-  const firstCombLeft   = [firstLeftTLabel  + " or " + cfg.attrA.label];
-  const firstCombRight  = [firstRightTLabel + " or " + cfg.attrB.label];
-  const secondCombLeft  = [switchLeftLabel  + " or " + cfg.attrA.label];
-  const secondCombRight = [switchRightLabel + " or " + cfg.attrB.label];
+  // Matches Inquisit layout: attribute (green) top → "or" → target below
+  const firstCombLeft  = [
+    '<span style="color:#005f00;font-weight:bold">' + cfg.attrA.label + '</span>',
+    'or',
+    firstLeftTLabel
+  ];
+  const firstCombRight = [
+    '<span style="color:#005f00;font-weight:bold">' + cfg.attrB.label + '</span>',
+    'or',
+    firstRightTLabel
+  ];
+  const secondCombLeft  = [
+    '<span style="color:#005f00;font-weight:bold">' + cfg.attrA.label + '</span>',
+    'or',
+    switchLeftLabel
+  ];
+  const secondCombRight = [
+    '<span style="color:#005f00;font-weight:bold">' + cfg.attrB.label + '</span>',
+    'or',
+    switchRightLabel
+  ];
 
   // Block tags — always identify compat vs incompat, regardless of order
   const scTag = compatFirst ? P + "_sc" : P + "_si";
@@ -416,26 +442,25 @@ function buildIAT(cfg) {
   const siTag = compatFirst ? P + "_si" : P + "_sc";
   const liTag = compatFirst ? P + "_li" : P + "_lc";
 
+  // Instruction text helpers — green for attribute labels, bold for target labels
+  // (mirrors Inquisit colour usage in instruction text)
+  const GN = lbl => `<span style="color:#005f00;font-weight:bold">'${lbl}'</span>`;
+  const BL = lbl => `<strong>'${lbl}'</strong>`;
+
   const tl = [];
 
   // ── IAT intro ────────────────────────────────────────────────────────────
-  tl.push(instrSlide(
-    "<h2>Task " + cfg.num + " of 3</h2>" +
-    "<p>Sort words and pictures into categories using " +
-    K("e") + " (left hand) and " + K("i") + " (right hand) as fast as possible.</p>" +
-    "<p>If you press the wrong key an " +
-    "<span style='color:red;font-weight:bold'>X</span> appears — " +
-    "press the other key to continue.</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to begin.</p>"
-  ));
+  tl.push(instrSlide(cfg.intro));
 
   // ── B1: Target practice (20 trials) ──────────────────────────────────────
+  // Inquisit instruction 1
   tl.push(instrSlide(
-    "<h2>Block 1 of 7 — Practice</h2>" +
-    "<p>" + K("e") + " = " + TT(firstLeftTLabel) +
-    " &nbsp;&nbsp;&nbsp; " +
-    K("i") + " = " + TT(firstRightTLabel) + "</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+    `<p>Put your left finger on the ${K("e")} response key for items that belong to the category ${BL(firstLeftTLabel)}.</p>` +
+    `<p>Put your right finger on the ${K("i")} response key for items that belong to the category ${BL(firstRightTLabel)}.</p>` +
+    `<p>Items will appear one-by-one in the middle of the screen.</p>` +
+    `<p>If you make an error, a red X will appear - to continue, press the other response key.</p>` +
+    `<p>Go as fast as you can while making as few errors as possible.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
   ));
   tl.push(...makeSingleBlock(
     firstLeftTargets, firstRightTargets, false,
@@ -444,40 +469,44 @@ function buildIAT(cfg) {
   ));
 
   // ── B2: Attribute practice (20 trials) ───────────────────────────────────
+  // Inquisit instruction 2
   tl.push(instrSlide(
-    "<h2>Block 2 of 7 — Practice</h2>" +
-    "<p>" + K("e") + " = " + TA(cfg.attrA.label) +
-    " &nbsp;&nbsp;&nbsp; " +
-    K("i") + " = " + TA(cfg.attrB.label) + "</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+    `<p>Put your left finger on the ${K("e")} response key for items that belong to the category ${GN(cfg.attrA.label)}.</p>` +
+    `<p>Put your right finger on the ${K("i")} response key for items that belong to the category ${GN(cfg.attrB.label)}.</p>` +
+    `<p>If you make an error, a red X will appear - to continue, press the other response key.</p>` +
+    `<p>Go as fast as you can while making as few errors as possible.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
   ));
   tl.push(...makeSingleBlock(
     cfg.attrA.words, cfg.attrB.words, true,
-    [cfg.attrA.label], [cfg.attrB.label],
+    attrALbl, attrBLbl,
     P + "_b2", 20
   ));
 
   // ── B3: First combined short test (20 trials) — D-score ──────────────────
+  // Inquisit instruction 3
   tl.push(instrSlide(
-    "<h2>Block 3 of 7 — Combined (practice)</h2>" +
-    "<p>" + K("e") + " = " + TT(firstLeftTLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
-    " &nbsp;&nbsp;&nbsp; " +
-    K("i") + " = " + TT(firstRightTLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+    `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(firstLeftTLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(firstRightTLabel)}.</p>` +
+    `<p>Each item belongs to only one category.</p>` +
+    `<p>If you make an error, a red X will appear - to continue, press the other response key.</p>` +
+    `<p>Go as fast as you can while making as few errors as possible.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
   ));
   tl.push(...makeCombinedBlock(
     firstLeftTargets, firstRightTargets, cfg.attrA.words, cfg.attrB.words,
     firstCombLeft, firstCombRight, scTag, 20
   ));
 
-  // ── Instruction between B3 and B5 (Inquisit block 4) ─────────────────────
+  // ── Instruction between B3 and B5 (Inquisit instruction 4) ───────────────
   tl.push(instrSlide(
-    "<h2>Block 4 of 7 — Combined (test)</h2>" +
-    "<p>Same pairings — keep going!</p>" +
-    "<p>" + K("e") + " = " + TT(firstLeftTLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
-    " &nbsp;&nbsp;&nbsp; " +
-    K("i") + " = " + TT(firstRightTLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+    `<p>This is the same task as the previous one.</p>` +
+    `<br>` +
+    `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(firstLeftTLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(firstRightTLabel)}.</p>` +
+    `<p>Each item belongs to only one category.</p>` +
+    `<p>Go as fast as you can while making as few errors as possible.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
   ));
 
   // ── B5: First combined long test (40 trials) — D-score ───────────────────
@@ -487,13 +516,13 @@ function buildIAT(cfg) {
   ));
 
   // ── B6: Target switch practice (20 trials) ───────────────────────────────
+  // Inquisit instruction 5
   tl.push(instrSlide(
-    "<h2>Block 5 of 7 — Practice (key switch!)</h2>" +
-    "<p><strong>The sides have swapped — pay attention!</strong></p>" +
-    "<p>" + K("e") + " = " + TT(switchLeftLabel) +
-    " &nbsp;&nbsp;&nbsp; " +
-    K("i") + " = " + TT(switchRightLabel) + "</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+    `<p>Attention! The labels have changed sides.</p>` +
+    `<p>Press the left ${K("e")} key for ${BL(switchLeftLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${BL(switchRightLabel)}.</p>` +
+    `<p>Go as fast as you can while making as few errors as possible.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
   ));
   tl.push(...makeSingleBlock(
     switchLeftTargets, switchRightTargets, false,
@@ -502,26 +531,27 @@ function buildIAT(cfg) {
   ));
 
   // ── B7: Second combined short test (20 trials) — D-score ─────────────────
+  // Inquisit instruction 6
   tl.push(instrSlide(
-    "<h2>Block 6 of 7 — Combined (practice, switched)</h2>" +
-    "<p>" + K("e") + " = " + TT(switchLeftLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
-    " &nbsp;&nbsp;&nbsp; " +
-    K("i") + " = " + TT(switchRightLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+    `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(switchLeftLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(switchRightLabel)}.</p>` +
+    `<p>If you make an error, a red X will appear - to continue, press the other response key.</p>` +
+    `<p>Go as fast as you can while making as few errors as possible.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
   ));
   tl.push(...makeCombinedBlock(
     switchLeftTargets, switchRightTargets, cfg.attrA.words, cfg.attrB.words,
     secondCombLeft, secondCombRight, siTag, 20
   ));
 
-  // ── Instruction between B7 and B9 (Inquisit block 8) ─────────────────────
+  // ── Instruction between B7 and B9 (Inquisit instruction 7) ───────────────
   tl.push(instrSlide(
-    "<h2>Block 7 of 7 — Combined (test, switched)</h2>" +
-    "<p>Same pairings — go as fast as you can!</p>" +
-    "<p>" + K("e") + " = " + TT(switchLeftLabel) + " <em>or</em> " + TA(cfg.attrA.label) +
-    " &nbsp;&nbsp;&nbsp; " +
-    K("i") + " = " + TT(switchRightLabel) + " <em>or</em> " + TA(cfg.attrB.label) + "</p>" +
-    "<p class='spacebar-note'>Press SPACEBAR to start.</p>"
+    `<p>This is the same task as the previous one.</p>` +
+    `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(switchLeftLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(switchRightLabel)}.</p>` +
+    `<p>Each item belongs to only one category.</p>` +
+    `<p>Go as fast as you can while making as few errors as possible.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
   ));
 
   // ── B9: Second combined long test (40 trials) — D-score ──────────────────
@@ -533,9 +563,10 @@ function buildIAT(cfg) {
   // ── Between-IAT break ─────────────────────────────────────────────────────
   if (cfg.num < 3) {
     tl.push(instrSlide(
-      "<h2>Task " + cfg.num + " complete!</h2>" +
-      "<p>You may take a short break.</p>" +
-      "<p>Task " + (cfg.num + 1) + " starts when you press SPACEBAR.</p>"
+      `<p style="text-align:center;font-size:20px;font-weight:bold">Task ${cfg.num} complete!</p>` +
+      `<p>You may take a short break.</p>` +
+      `<p>Task ${cfg.num + 1} of 3 begins when you press the SPACE BAR.</p>` +
+      `<p class="spacebar-note">Press the SPACE BAR to continue.</p>`
     ));
   }
 
@@ -553,6 +584,16 @@ const IAT1 = {
   targetB: { label: AGE_TARGET_B_LABEL, stimuli: OLD_FACES   },
   attrA:   { label: AGE_ATTR_A_LABEL,   words:   AGE_ATTR_A  },
   attrB:   { label: AGE_ATTR_B_LABEL,   words:   AGE_ATTR_B  },
+  intro:
+    `<p style="text-align:center;font-size:20px;font-weight:bold">Task 1 of 3</p>` +
+    `<p>In this task, you will see <strong>faces of young and older adults</strong>, ` +
+    `as well as <strong>pleasant and unpleasant words</strong>.</p>` +
+    `<p>Your task is to sort these items into categories as quickly as possible ` +
+    `using the ${K("e")} key (left hand) and the ${K("i")} key (right hand).</p>` +
+    `<p>It is important to go <strong>as fast as you can</strong> while making as few errors as possible. ` +
+    `If you make an error, a red <span style="color:red;font-weight:bold">X</span> will appear — ` +
+    `press the other key to continue.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`,
 };
 
 const IAT2 = {
@@ -561,6 +602,16 @@ const IAT2 = {
   targetB: { label: FS_TARGET_B_LABEL, stimuli: FUTURE_SELF  },
   attrA:   { label: FS_ATTR_A_LABEL,   words:   FS_ATTR_A    },
   attrB:   { label: FS_ATTR_B_LABEL,   words:   FS_ATTR_B    },
+  intro:
+    `<p style="text-align:center;font-size:20px;font-weight:bold">Task 2 of 3</p>` +
+    `<p>In this task, you will see words related to your <strong>Current Self</strong> ` +
+    `and your <strong>Future Self</strong>, as well as <strong>pleasant and unpleasant words</strong>.</p>` +
+    `<p>Your task is to sort these items into categories as quickly as possible ` +
+    `using the ${K("e")} key (left hand) and the ${K("i")} key (right hand).</p>` +
+    `<p>It is important to go <strong>as fast as you can</strong> while making as few errors as possible. ` +
+    `If you make an error, a red <span style="color:red;font-weight:bold">X</span> will appear — ` +
+    `press the other key to continue.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`,
 };
 
 const IAT3 = {
@@ -569,6 +620,16 @@ const IAT3 = {
   targetB: { label: SE_TARGET_B_LABEL, stimuli: OTHER_WORDS },
   attrA:   { label: SE_ATTR_A_LABEL,   words:   SE_ATTR_A   },
   attrB:   { label: SE_ATTR_B_LABEL,   words:   SE_ATTR_B   },
+  intro:
+    `<p style="text-align:center;font-size:20px;font-weight:bold">Task 3 of 3</p>` +
+    `<p>In this task, you will see words related to the <strong>Self</strong> ` +
+    `and <strong>Others</strong>, as well as <strong>pleasant and unpleasant words</strong>.</p>` +
+    `<p>Your task is to sort these items into categories as quickly as possible ` +
+    `using the ${K("e")} key (left hand) and the ${K("i")} key (right hand).</p>` +
+    `<p>It is important to go <strong>as fast as you can</strong> while making as few errors as possible. ` +
+    `If you make an error, a red <span style="color:red;font-weight:bold">X</span> will appear — ` +
+    `press the other key to continue.</p>` +
+    `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`,
 };
 
 
