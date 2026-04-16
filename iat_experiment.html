@@ -22,7 +22,8 @@
       font-weight: bold;
       color: #000;
     }
-    .iat-attr  { color: #005f00; }
+    .iat-attr   { color: #005f00; }
+    .iat-attr-b { color: red; }
     .iat-face  { max-height: 160px; max-width: 200px; object-fit: cover; }
     .iat-error { font-size: 90px; font-weight: bold; color: red; line-height: 1; }
     .iat-bottom {
@@ -184,9 +185,9 @@ function fillN(arr, n) {
   return out.slice(0, n);
 }
 
-function targetHTML(w) { return `<span class="iat-word">${w}</span>`; }
-function attrHTML(w)   { return `<span class="iat-word iat-attr">${w}</span>`; }
-function faceHTML(f)   { return `<img class="iat-face" src="${f.src}" alt="${f.alt}">`; }
+function targetHTML(w)      { return `<span class="iat-word">${w}</span>`; }
+function attrHTML(w, isB)   { return `<span class="iat-word ${isB ? "iat-attr-b" : "iat-attr"}">${w}</span>`; }
+function faceHTML(f)        { return `<img class="iat-face" src="${f.src}" alt="${f.alt}">`; }
 
 // Build one IAT trial as a nested timeline.
 // The main trial ends on any key (response_ends_trial: true).
@@ -194,7 +195,7 @@ function faceHTML(f)   { return `<img class="iat-face" src="${f.src}" alt="${f.a
 // the same stimulus + X and accepting ONLY the correct key.
 function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
   const isImage   = typeof item === "object" && item.src;
-  const stimHTML  = isAttr  ? attrHTML(item)
+  const stimHTML  = isAttr  ? attrHTML(item, keyAssoc === "right")
                  : isImage  ? faceHTML(item)
                  : targetHTML(item);
   const correctKey = keyAssoc === "left" ? LEFT_KEY : RIGHT_KEY;
@@ -409,19 +410,19 @@ function buildIAT(cfg) {
   const switchLeftLabel    = compatFirst ? cfg.targetB.label   : cfg.targetA.label;
   const switchRightLabel   = compatFirst ? cfg.targetA.label   : cfg.targetB.label;
 
-  // Attribute labels rendered in green — matches Inquisit txColor = green for attributes
+  // Attribute labels: attrA (good/pleasant) = green, attrB (bad/unpleasant) = red
   const attrALbl = ['<span style="color:#005f00;font-weight:bold">' + cfg.attrA.label + '</span>'];
-  const attrBLbl = ['<span style="color:#005f00;font-weight:bold">' + cfg.attrB.label + '</span>'];
+  const attrBLbl = ['<span style="color:red;font-weight:bold">'     + cfg.attrB.label + '</span>'];
 
   // Category labels for combined blocks
-  // Matches Inquisit layout: attribute (green) top → "or" → target below
+  // Layout: attribute (colored) top → "or" → target below
   const firstCombLeft  = [
     '<span style="color:#005f00;font-weight:bold">' + cfg.attrA.label + '</span>',
     'or',
     firstLeftTLabel
   ];
   const firstCombRight = [
-    '<span style="color:#005f00;font-weight:bold">' + cfg.attrB.label + '</span>',
+    '<span style="color:red;font-weight:bold">'     + cfg.attrB.label + '</span>',
     'or',
     firstRightTLabel
   ];
@@ -431,7 +432,7 @@ function buildIAT(cfg) {
     switchLeftLabel
   ];
   const secondCombRight = [
-    '<span style="color:#005f00;font-weight:bold">' + cfg.attrB.label + '</span>',
+    '<span style="color:red;font-weight:bold">'     + cfg.attrB.label + '</span>',
     'or',
     switchRightLabel
   ];
@@ -442,9 +443,9 @@ function buildIAT(cfg) {
   const siTag = compatFirst ? P + "_si" : P + "_sc";
   const liTag = compatFirst ? P + "_li" : P + "_lc";
 
-  // Instruction text helpers — green for attribute labels, bold for target labels
-  // (mirrors Inquisit colour usage in instruction text)
+  // Instruction text helpers: attrA green, attrB red, targets bold
   const GN = lbl => `<span style="color:#005f00;font-weight:bold">'${lbl}'</span>`;
+  const RD = lbl => `<span style="color:red;font-weight:bold">'${lbl}'</span>`;
   const BL = lbl => `<strong>'${lbl}'</strong>`;
 
   const tl = [];
@@ -472,7 +473,7 @@ function buildIAT(cfg) {
   // Inquisit instruction 2
   tl.push(instrSlide(
     `<p>Put your left finger on the ${K("e")} response key for items that belong to the category ${GN(cfg.attrA.label)}.</p>` +
-    `<p>Put your right finger on the ${K("i")} response key for items that belong to the category ${GN(cfg.attrB.label)}.</p>` +
+    `<p>Put your right finger on the ${K("i")} response key for items that belong to the category ${RD(cfg.attrB.label)}.</p>` +
     `<p>If you make an error, a red X will appear - to continue, press the other response key.</p>` +
     `<p>Go as fast as you can while making as few errors as possible.</p>` +
     `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
@@ -487,7 +488,7 @@ function buildIAT(cfg) {
   // Inquisit instruction 3
   tl.push(instrSlide(
     `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(firstLeftTLabel)}.</p>` +
-    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(firstRightTLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${RD(cfg.attrB.label)} and ${BL(firstRightTLabel)}.</p>` +
     `<p>Each item belongs to only one category.</p>` +
     `<p>If you make an error, a red X will appear - to continue, press the other response key.</p>` +
     `<p>Go as fast as you can while making as few errors as possible.</p>` +
@@ -503,7 +504,7 @@ function buildIAT(cfg) {
     `<p>This is the same task as the previous one.</p>` +
     `<br>` +
     `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(firstLeftTLabel)}.</p>` +
-    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(firstRightTLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${RD(cfg.attrB.label)} and ${BL(firstRightTLabel)}.</p>` +
     `<p>Each item belongs to only one category.</p>` +
     `<p>Go as fast as you can while making as few errors as possible.</p>` +
     `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
@@ -534,7 +535,7 @@ function buildIAT(cfg) {
   // Inquisit instruction 6
   tl.push(instrSlide(
     `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(switchLeftLabel)}.</p>` +
-    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(switchRightLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${RD(cfg.attrB.label)} and ${BL(switchRightLabel)}.</p>` +
     `<p>If you make an error, a red X will appear - to continue, press the other response key.</p>` +
     `<p>Go as fast as you can while making as few errors as possible.</p>` +
     `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
@@ -548,7 +549,7 @@ function buildIAT(cfg) {
   tl.push(instrSlide(
     `<p>This is the same task as the previous one.</p>` +
     `<p>Press the left ${K("e")} key for ${GN(cfg.attrA.label)} and ${BL(switchLeftLabel)}.</p>` +
-    `<p>Press the right ${K("i")} key for ${GN(cfg.attrB.label)} and ${BL(switchRightLabel)}.</p>` +
+    `<p>Press the right ${K("i")} key for ${RD(cfg.attrB.label)} and ${BL(switchRightLabel)}.</p>` +
     `<p>Each item belongs to only one category.</p>` +
     `<p>Go as fast as you can while making as few errors as possible.</p>` +
     `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`
@@ -587,10 +588,15 @@ const IAT1 = {
   intro:
     `<p style="text-align:center;font-size:20px;font-weight:bold">Task 1 of 3</p>` +
     `<p>In this task, you will see <strong>faces of young and older adults</strong>, ` +
-    `as well as <strong>pleasant and unpleasant words</strong>.</p>` +
-    `<p>Your task is to sort these items into categories as quickly as possible ` +
+    `along with words that are either <span style="color:#005f00;font-weight:bold">Good</span> ` +
+    `or <span style="color:red;font-weight:bold">Bad</span>.</p>` +
+    `<p><span style="color:#005f00;font-weight:bold">Good words:</span> ` +
+    `Joy, Love, Peace, Wonderful, Pleasure, Glorious, Laughter, Happy</p>` +
+    `<p><span style="color:red;font-weight:bold">Bad words:</span> ` +
+    `Agony, Terrible, Horrible, Nasty, Evil, Awful, Failure, Hurt</p>` +
+    `<p>Sort the items into categories as quickly as possible ` +
     `using the ${K("e")} key (left hand) and the ${K("i")} key (right hand).</p>` +
-    `<p>It is important to go <strong>as fast as you can</strong> while making as few errors as possible. ` +
+    `<p>Go <strong>as fast as you can</strong> while making as few errors as possible. ` +
     `If you make an error, a red <span style="color:red;font-weight:bold">X</span> will appear — ` +
     `press the other key to continue.</p>` +
     `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`,
@@ -605,10 +611,16 @@ const IAT2 = {
   intro:
     `<p style="text-align:center;font-size:20px;font-weight:bold">Task 2 of 3</p>` +
     `<p>In this task, you will see words related to your <strong>Current Self</strong> ` +
-    `and your <strong>Future Self</strong>, as well as <strong>pleasant and unpleasant words</strong>.</p>` +
-    `<p>Your task is to sort these items into categories as quickly as possible ` +
+    `and your <strong>Future Self</strong>, along with words that are either ` +
+    `<span style="color:#005f00;font-weight:bold">Pleasant</span> ` +
+    `or <span style="color:red;font-weight:bold">Unpleasant</span>.</p>` +
+    `<p><span style="color:#005f00;font-weight:bold">Pleasant words:</span> ` +
+    `Joy, Warmth, Gold, Happy, Smile, Pleasure</p>` +
+    `<p><span style="color:red;font-weight:bold">Unpleasant words:</span> ` +
+    `Gloom, Agony, Pain, Stink, Filth, Death</p>` +
+    `<p>Sort the items into categories as quickly as possible ` +
     `using the ${K("e")} key (left hand) and the ${K("i")} key (right hand).</p>` +
-    `<p>It is important to go <strong>as fast as you can</strong> while making as few errors as possible. ` +
+    `<p>Go <strong>as fast as you can</strong> while making as few errors as possible. ` +
     `If you make an error, a red <span style="color:red;font-weight:bold">X</span> will appear — ` +
     `press the other key to continue.</p>` +
     `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`,
@@ -623,10 +635,16 @@ const IAT3 = {
   intro:
     `<p style="text-align:center;font-size:20px;font-weight:bold">Task 3 of 3</p>` +
     `<p>In this task, you will see words related to the <strong>Self</strong> ` +
-    `and <strong>Others</strong>, as well as <strong>pleasant and unpleasant words</strong>.</p>` +
-    `<p>Your task is to sort these items into categories as quickly as possible ` +
+    `and <strong>Others</strong>, along with words that are either ` +
+    `<span style="color:#005f00;font-weight:bold">Pleasant</span> ` +
+    `or <span style="color:red;font-weight:bold">Unpleasant</span>.</p>` +
+    `<p><span style="color:#005f00;font-weight:bold">Pleasant words:</span> ` +
+    `Joy, Warmth, Gold, Happy, Smile, Pleasure</p>` +
+    `<p><span style="color:red;font-weight:bold">Unpleasant words:</span> ` +
+    `Gloom, Agony, Pain, Stink, Filth, Death</p>` +
+    `<p>Sort the items into categories as quickly as possible ` +
     `using the ${K("e")} key (left hand) and the ${K("i")} key (right hand).</p>` +
-    `<p>It is important to go <strong>as fast as you can</strong> while making as few errors as possible. ` +
+    `<p>Go <strong>as fast as you can</strong> while making as few errors as possible. ` +
     `If you make an error, a red <span style="color:red;font-weight:bold">X</span> will appear — ` +
     `press the other key to continue.</p>` +
     `<p class="spacebar-note">Press the SPACE BAR to begin.</p>`,
