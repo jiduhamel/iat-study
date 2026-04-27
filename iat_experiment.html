@@ -748,7 +748,7 @@ const jsPsych = initJsPsych({
     const s3 = computeDScore(allData, "iat3");
 
     const params = new URLSearchParams({
-      ResponseID:       RESPONSE_ID,
+      Q_R:              RESPONSE_ID,
       conditionOrder:   GROUP === "a" ? "c-ic" : "ic-c",
       iatOrder:         IAT_ORDER_LABEL,
 
