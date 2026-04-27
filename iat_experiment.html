@@ -91,6 +91,7 @@ const QUALTRICS_SURVEY_URL =
 
 const URL_PARAMS  = new URLSearchParams(window.location.search);
 const RESPONSE_ID = URL_PARAMS.get("Q_ResponseID") || URL_PARAMS.get("ResponseID") || URL_PARAMS.get("rid") || "";
+const SUBJECT_ID  = URL_PARAMS.get("subject_ID") || "";
 
 // Counterbalancing: odd last digit of ResponseID => group a (compatible first)
 //                   even last digit               => group b (incompatible first)
@@ -736,6 +737,7 @@ const jsPsych = initJsPsych({
     const s3 = computeDScore(allData, "iat3");
 
     const params = new URLSearchParams({
+      subject_ID:       SUBJECT_ID,
       conditionOrder:   GROUP === "a" ? "c-ic" : "ic-c",
       iatOrder:         IAT_ORDER_LABEL,
 
