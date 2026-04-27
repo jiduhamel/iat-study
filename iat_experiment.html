@@ -72,6 +72,10 @@
 </head>
 <body>
 
+<button id="skip-btn" style="position:fixed;top:10px;right:10px;z-index:9999;padding:6px 14px;font-size:13px;cursor:pointer;">
+  Skip IATs (testing only)
+</button>
+
 <script>
 "use strict";
 
@@ -113,6 +117,16 @@ const IAT_ORDER_IDX = RESPONSE_ID
   ? _hashResponseID(RESPONSE_ID) % 6
   : Math.floor(Math.random() * 6);
 
+
+document.getElementById("skip-btn").addEventListener("click", function () {
+  window.location.href = QUALTRICS_SURVEY_URL +
+    "?subject_ID=" + encodeURIComponent(SUBJECT_ID) +
+    "&conditionOrder=" + (GROUP === "a" ? "c-ic" : "ic-c") +
+    "&iatOrder=skip" +
+    "&iat1_d=0&iat1_da=0&iat1_db=0&iat1_pctCorrect=0&iat1_propRT300=0&iat1_exclude=0&iat1_rtCompatS=0&iat1_rtCompatL=0&iat1_rtIncompatS=0&iat1_rtIncompatL=0" +
+    "&iat2_d=0&iat2_da=0&iat2_db=0&iat2_pctCorrect=0&iat2_propRT300=0&iat2_exclude=0&iat2_rtCompatS=0&iat2_rtCompatL=0&iat2_rtIncompatS=0&iat2_rtIncompatL=0" +
+    "&iat3_d=0&iat3_da=0&iat3_db=0&iat3_pctCorrect=0&iat3_propRT300=0&iat3_exclude=0&iat3_rtCompatS=0&iat3_rtCompatL=0&iat3_rtIncompatS=0&iat3_rtIncompatL=0";
+});
 
 /* ============================================================
    SECTION 2 — STIMULI  (matched exactly to Inquisit files)
@@ -728,13 +742,7 @@ const overallIntro = instrSlide(
 const jsPsych = initJsPsych({
   show_progress_bar:    true,
   message_progress_bar: "Progress",
-  on_trial_start: function () {
-    const btn = document.createElement("button");
-    btn.textContent = "Skip IATs (testing only)";
-    btn.style.cssText = "position:fixed;top:10px;right:10px;z-index:9999;padding:6px 14px;font-size:13px;cursor:pointer;";
-    btn.onclick = function () { jsPsych.abortExperiment(); };
-    document.body.appendChild(btn);
-  },
+  on_trial_start: function () {},
   on_finish: function () {
     const allData = jsPsych.data.get().values();
 
