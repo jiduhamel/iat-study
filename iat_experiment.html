@@ -728,19 +728,7 @@ const overallIntro = instrSlide(
 const jsPsych = initJsPsych({
   show_progress_bar:    true,
   message_progress_bar: "Progress",
-  on_trial_start: function () {
-    if (document.getElementById('skip-btn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'skip-btn';
-    btn.textContent = 'Skip IATs (testing only)';
-    Object.assign(btn.style, {
-      position: 'fixed', bottom: '12px', right: '12px', zIndex: 9999,
-      padding: '6px 14px', fontSize: '13px', cursor: 'pointer',
-      background: '#eee', border: '1px solid #999', borderRadius: '4px', opacity: '0.75'
-    });
-    btn.onclick = function () { jsPsych.finishTrial(); jsPsych.endExperiment(); };
-    document.body.appendChild(btn);
-  },
+  on_trial_start: function () {},
   on_finish: function () {
     const allData = jsPsych.data.get().values();
 
