@@ -728,7 +728,13 @@ const overallIntro = instrSlide(
 const jsPsych = initJsPsych({
   show_progress_bar:    true,
   message_progress_bar: "Progress",
-  on_trial_start: function () {},
+  on_trial_start: function () {
+    const btn = document.createElement("button");
+    btn.textContent = "Skip IATs (testing only)";
+    btn.style.cssText = "position:fixed;top:10px;right:10px;z-index:9999;padding:6px 14px;font-size:13px;cursor:pointer;";
+    btn.onclick = function () { jsPsych.finishTrial(); };
+    document.body.appendChild(btn);
+  },
   on_finish: function () {
     const allData = jsPsych.data.get().values();
 
