@@ -100,6 +100,18 @@ const GROUP = isNaN(lastDigit)
   ? (Math.random() < 0.5 ? "a" : "b")
   : (lastDigit % 2 === 1   ? "a" : "b");
 
+// IAT presentation order counterbalancing: 6 possible orderings of 3 IATs.
+// Uses a deterministic hash of ResponseID so the same participant always
+// gets the same order if they reload, and order is balanced across participants.
+function _hashResponseID(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+const IAT_ORDER_IDX = RESPONSE_ID
+  ? _hashResponseID(RESPONSE_ID) % 6
+  : Math.floor(Math.random() * 6);
+
 
 /* ============================================================
    SECTION 2 — STIMULI  (matched exactly to Inquisit files)
@@ -668,6 +680,22 @@ const IAT3 = {
 };
 
 
+// Assign presentation order and patch "Task X of 3" labels to match actual order.
+const IAT_ORDERS = [
+  [IAT1, IAT2, IAT3],
+  [IAT1, IAT3, IAT2],
+  [IAT2, IAT1, IAT3],
+  [IAT2, IAT3, IAT1],
+  [IAT3, IAT1, IAT2],
+  [IAT3, IAT2, IAT1],
+];
+const IAT_SEQUENCE  = IAT_ORDERS[IAT_ORDER_IDX];
+const IAT_ORDER_LABEL = IAT_SEQUENCE.map(c => c.name.replace('iat', '')).join('-');
+IAT_SEQUENCE.forEach((cfg, i) => {
+  cfg.intro = cfg.intro.replace(/Task \d of 3/, `Task ${i + 1} of 3`);
+});
+
+
 /* ============================================================
    SECTION 7 — PRELOAD + OVERALL INTRODUCTION
    ============================================================ */
@@ -722,6 +750,7 @@ const jsPsych = initJsPsych({
     const params = new URLSearchParams({
       ResponseID:       RESPONSE_ID,
       conditionOrder:   GROUP === "a" ? "c-ic" : "ic-c",
+      iatOrder:         IAT_ORDER_LABEL,
 
       iat1_d:           s1.d,
       iat1_da:          s1.da,
@@ -775,9 +804,9 @@ const jsPsych = initJsPsych({
 jsPsych.run([
   preload,
   overallIntro,
-  ...buildIAT(IAT1),
-  ...buildIAT(IAT2),
-  ...buildIAT(IAT3),
+  ...buildIAT(IAT_SEQUENCE[0]),
+  ...buildIAT(IAT_SEQUENCE[1]),
+  ...buildIAT(IAT_SEQUENCE[2]),
   {
     type:           jsPsychHtmlKeyboardResponse,
     stimulus:       "<p style='font-family:Helvetica,Arial,sans-serif;font-size:22px;color:#000'>All done! Saving results…</p>",
