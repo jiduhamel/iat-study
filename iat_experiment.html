@@ -732,7 +732,7 @@ const jsPsych = initJsPsych({
     const btn = document.createElement("button");
     btn.textContent = "Skip IATs (testing only)";
     btn.style.cssText = "position:fixed;top:10px;right:10px;z-index:9999;padding:6px 14px;font-size:13px;cursor:pointer;";
-    btn.onclick = function () { jsPsych.finishTrial(); };
+    btn.onclick = function () { jsPsych.abortExperiment(); };
     document.body.appendChild(btn);
   },
   on_finish: function () {
