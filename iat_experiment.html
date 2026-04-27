@@ -87,8 +87,8 @@
    ============================================================ */
 
 const QUALTRICS_SURVEY_URL =
-  "";
-https://maastrichtuniversity.eu.qualtrics.com/jfe/form/SV_0Aomaip2uYrqD4y
+  "https://maastrichtuniversity.eu.qualtrics.com/jfe/form/SV_0Aomaip2uYrqD4y";
+
 const URL_PARAMS  = new URLSearchParams(window.location.search);
 const RESPONSE_ID = URL_PARAMS.get("Q_ResponseID") || URL_PARAMS.get("ResponseID") || URL_PARAMS.get("rid") || "";
 const SUBJECT_ID  = URL_PARAMS.get("subject_ID") || "";
@@ -112,6 +112,7 @@ function _hashResponseID(s) {
 const IAT_ORDER_IDX = RESPONSE_ID
   ? _hashResponseID(RESPONSE_ID) % 6
   : Math.floor(Math.random() * 6);
+
 
 
 /* ============================================================
