@@ -80,10 +80,17 @@
    ============================================================
    Variables returned per IAT (prefix iat1_ / iat2_ / iat3_):
      d, da, db, pctCorrect, propRT300, exclude,
-     rtCompatS, rtCompatL, rtIncompatS, rtIncompatL
-   Also: ResponseID, conditionOrder (c-ic or ic-c).
+     rtCompatS, rtCompatL, rtIncompatS, rtIncompatL,
+     conditionOrder (c-ic or ic-c, assigned independently per IAT — see
+     groupForIAT below).
+   Also: ResponseID, iatOrder (presentation order of the 3 tasks).
    In Qualtrics > Survey Flow > Embedded Data, add each field
    and set source to "Set from Survey URL".
+
+   Only pre-aggregated summary stats travel to Qualtrics (a URL query
+   string can't hold ~540 raw trial rows). The full raw trial-by-trial
+   data (every stimulus, key, rt, correct, block) is saved separately —
+   see SECTION 1b — so D-scores can be recomputed independently later.
    ============================================================ */
 
 const QUALTRICS_SURVEY_URL =
@@ -93,25 +100,118 @@ const URL_PARAMS  = new URLSearchParams(window.location.search);
 const RESPONSE_ID = URL_PARAMS.get("Q_ResponseID") || URL_PARAMS.get("ResponseID") || URL_PARAMS.get("rid") || "";
 const SUBJECT_ID  = URL_PARAMS.get("subject_ID") || "";
 
-// Counterbalancing: odd last digit of ResponseID => group a (compatible first)
-//                   even last digit               => group b (incompatible first)
-// Mirrors Inquisit odd/even groupnumber logic.
-const lastDigit = parseInt(RESPONSE_ID.slice(-1));
-const GROUP = isNaN(lastDigit)
-  ? (Math.random() < 0.5 ? "a" : "b")
-  : (lastDigit % 2 === 1   ? "a" : "b");
+/* ============================================================
+   SECTION 1b — RAW DATA EXPORT (jsPsych DataPipe)
+   ============================================================
+   Sends the complete raw trial-by-trial dataset as a CSV to
+   https://pipe.jspsych.org, so it can be downloaded afterwards and used
+   to recompute D-scores (or anything else) independently of the
+   in-browser computeDScore() below.
 
-// IAT presentation order counterbalancing: 6 possible orderings of 3 IATs.
-// Uses a deterministic hash of ResponseID so the same participant always
-// gets the same order if they reload, and order is balanced across participants.
-function _hashResponseID(s) {
+   Setup (one-time):
+     1. Create a project at https://pipe.jspsych.org (log in with OSF).
+     2. Copy its Experiment ID and paste it into DATAPIPE_EXPERIMENT_ID.
+     3. In the OSF project, files will appear per participant as
+        <subject_or_response_id>_<timestamp>.csv.
+   If DATAPIPE_EXPERIMENT_ID is left unconfigured, the save is skipped
+   (with a console warning) and only the Qualtrics summary stats survive.
+
+   Testing: append ?debug=1 to the URL to log the CSV to the browser
+   console instead of POSTing it to DataPipe — lets you eyeball column
+   names/values (block tags, rt, correct) without seeding the real OSF
+   project with test runs.
+   ============================================================ */
+
+const DATAPIPE_EXPERIMENT_ID = "cDHk3ROLx3Vg";
+const DEBUG_MODE = URL_PARAMS.get("debug") === "1";
+
+async function saveRawDataToPipe(filenameBase, csvString) {
+  if (DEBUG_MODE) {
+    console.log(`[debug] Would save "${filenameBase}.csv" to DataPipe:`);
+    console.log(csvString);
+    return;
+  }
+  if (!DATAPIPE_EXPERIMENT_ID || DATAPIPE_EXPERIMENT_ID.startsWith("PASTE-")) {
+    console.warn("DATAPIPE_EXPERIMENT_ID not configured — raw trial data was not saved.");
+    return;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    await fetch("https://pipe.jspsych.org/api/data/", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        experimentID: DATAPIPE_EXPERIMENT_ID,
+        filename:     `${filenameBase}.csv`,
+        data:         csvString,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    // Don't block the participant's return to Qualtrics on a failed/slow save.
+    console.error("DataPipe save failed:", err);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Deterministic hash of a string so the same participant always gets the
+// same assignment if they reload, while assignments are balanced across
+// participants (odd/even hash bit acts like a coin flip).
+function _hashString(s) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-const IAT_ORDER_IDX = RESPONSE_ID
-  ? _hashResponseID(RESPONSE_ID) % 6
-  : Math.floor(Math.random() * 6);
+
+// All condition assignment (compatible/incompatible order per IAT, IAT
+// presentation order) is derived by hashing an identifier, so it must be
+// stable across reloads AND across devices/browsers for the same
+// participant. subject_ID (the student ID number, entered by the
+// participant on a required Qualtrics question and piped into the launch
+// URL) is used as the primary identifier for exactly that reason: unlike
+// Qualtrics' internal ResponseID (not always finalized when the page first
+// loads) or a locally-stored ID (bound to one browser/device), the student
+// ID is guaranteed present and identical no matter where the participant
+// opens the link.
+function getFallbackParticipantID() {
+  const STORAGE_KEY = "iat_fallback_participant_id";
+  const makeID = () => "local_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+  try {
+    let id = window.localStorage.getItem(STORAGE_KEY);
+    if (!id) {
+      id = makeID();
+      window.localStorage.setItem(STORAGE_KEY, id);
+    }
+    return id;
+  } catch (e) {
+    // localStorage unavailable (e.g. private browsing) — condition can't be
+    // made reproducible across reloads in this case.
+    return makeID();
+  }
+}
+
+// Priority: student ID (subject_ID) > Qualtrics ResponseID > locally-stored
+// fallback. The first two come from the survey URL and are reproducible
+// across any device; the last is a last-resort safety net for testing the
+// file outside Qualtrics (e.g. opening it directly with no query string).
+const EFFECTIVE_ID = SUBJECT_ID || RESPONSE_ID || getFallbackParticipantID();
+
+// Counterbalancing: compatible-first ("a") vs incompatible-first ("b"),
+// assigned INDEPENDENTLY for each of the 3 IATs (hash of EFFECTIVE_ID + IAT
+// name) rather than once globally. A single global assignment would give
+// every participant the same block order (compatible-first or
+// incompatible-first) in all three IATs, letting order effects accumulate
+// identically across tasks instead of being balanced out.
+function groupForIAT(name) {
+  return _hashString(EFFECTIVE_ID + "_" + name) % 2 === 0 ? "a" : "b";
+}
+
+// IAT presentation order counterbalancing: 6 possible orderings of 3 IATs.
+// Uses a deterministic hash of EFFECTIVE_ID so the same participant always
+// gets the same order if they reload, and order is balanced across participants.
+const IAT_ORDER_IDX = _hashString(EFFECTIVE_ID) % 6;
 
 
 
@@ -203,72 +303,45 @@ function targetHTML(w)      { return `<span class="iat-word">${w}</span>`; }
 function attrHTML(w, isB)   { return `<span class="iat-word ${isB ? "iat-attr-b" : "iat-attr"}">${w}</span>`; }
 function faceHTML(f)        { return `<img class="iat-face" src="${f.src}" alt="${f.alt}">`; }
 
-// Build one IAT trial as a nested timeline.
-// The main trial ends on any key (response_ends_trial: true).
-// If the response was wrong, a correction trial immediately follows showing
-// the same stimulus + X and accepting ONLY the correct key.
+// Build one IAT trial.
+// Uses the plugin's native force_correct_key_press so an incorrect response
+// keeps the SAME stimulus on screen, shows the red X, and waits for the
+// correct key within this one trial — no separate trial/re-render, matching
+// conventional IAT software. The plugin only records rt to the *first*
+// keypress, so on_start/on_finish are used to record our own rt spanning
+// stimulus onset through the eventual correct response.
 function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
-  const isImage   = typeof item === "object" && item.src;
-  const stimHTML  = isAttr  ? attrHTML(item, keyAssoc === "right")
-                 : isImage  ? faceHTML(item)
+  const isImage  = typeof item === "object" && item.src;
+  const stimHTML = isAttr  ? attrHTML(item, keyAssoc === "right")
+                 : isImage ? faceHTML(item)
                  : targetHTML(item);
-  const correctKey = keyAssoc === "left" ? LEFT_KEY : RIGHT_KEY;
 
   const errorReminder =
     `<div style="position:fixed;bottom:10px;left:0;right:0;text-align:center;` +
     `font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;color:#888;">` +
     `If you make an error, a red X will appear. Press the other key to continue.</div>`;
 
+  let stimOnset;
   const mainTrial = {
-    type:                 jsPsychIatHtml,
-    stimulus:             stimHTML + errorReminder,
-    stim_key_association: keyAssoc,
-    left_category_key:    LEFT_KEY,
-    right_category_key:   RIGHT_KEY,
-    left_category_label:  leftLbl,
-    right_category_label: rightLbl,
-    display_feedback:     true,
-    html_when_wrong:      `<span style="color:red;font-size:80px;font-weight:bold;display:block;text-align:center;line-height:1;margin-top:10px">X</span>`,
-    trial_duration:       null,
-    response_ends_trial:  true,
-    post_trial_gap:       ISI_MS,
-    data:                 { block: blockTag },
+    type:                    jsPsychIatHtml,
+    stimulus:                stimHTML + errorReminder,
+    stim_key_association:    keyAssoc,
+    left_category_key:       LEFT_KEY,
+    right_category_key:      RIGHT_KEY,
+    left_category_label:     leftLbl,
+    right_category_label:    rightLbl,
+    display_feedback:        true,
+    html_when_wrong:         `<span style="color:red;font-size:80px;font-weight:bold;display:block;text-align:center;line-height:1;margin-top:10px">X</span>`,
+    force_correct_key_press: true,
+    trial_duration:          null,
+    response_ends_trial:     true,
+    post_trial_gap:          ISI_MS,
+    data:                    { block: blockTag },
+    on_start:                function ()     { stimOnset = performance.now(); },
+    on_finish:               function (data) { data.rt = Math.round(performance.now() - stimOnset); },
   };
 
-  // Correction trial: same layout as the IAT (labels in corners + stimulus + X).
-  // Only the correct key is accepted, forcing the participant to respond correctly.
-  const LBL  = s => `<span style="font-family:monospace;display:inline-block;border:2px solid #333;` +
-                    `border-radius:3px;padding:1px 8px;background:#f0f0f0;font-size:16px">${s}</span>`;
-  // Render label array the same way the plugin does: item[0], "or", item[1] (if 2 items)
-  const renderLbl = arr => arr.length === 1 ? arr[0] : arr[0] + "<br>or<br>" + arr[1];
-  const correctionTrial = {
-    type:    jsPsychHtmlKeyboardResponse,
-    stimulus:
-      `<div style="position:fixed;top:16px;left:16px;text-align:left;` +
-      `font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:17px;font-weight:bold;color:#000">` +
-      `${LBL("E")}<br>${renderLbl(leftLbl)}</div>` +
-      `<div style="position:fixed;top:16px;right:16px;text-align:right;` +
-      `font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:17px;font-weight:bold;color:#000">` +
-      `${LBL("I")}<br>${renderLbl(rightLbl)}</div>` +
-      stimHTML +
-      `<div style="color:red;font-size:80px;font-weight:bold;text-align:center;line-height:1;margin-top:10px">X</div>`,
-    choices:        [correctKey],
-    post_trial_gap: ISI_MS,
-    data:           { block: blockTag, is_correction: true },
-  };
-
-  return {
-    timeline: [
-      mainTrial,
-      {
-        timeline: [correctionTrial],
-        conditional_function: function () {
-          const last = jsPsych.data.get().last(1).values()[0];
-          return last && last.correct === false && !last.is_correction;
-        },
-      },
-    ],
-  };
+  return { timeline: [mainTrial] };
 }
 
 // Single-category block (target-only or attribute-only practice).
@@ -338,25 +411,11 @@ const TA = lbl => `<span class="cat-tag attr">${lbl}</span>`;
    ============================================================ */
 
 function computeDScore(allData, prefix) {
-  // Inquisit records a single latency per trial = time from stimulus onset to the
-  // CORRECT response. For error trials this means: wrong-key RT + correction RT
-  // (the trial stays open until the correct key is pressed).
-  // We replicate that by folding each correction trial's RT back into the preceding
-  // error trial before doing any further analysis.
-  const mergedData = [];
-  for (let i = 0; i < allData.length; i++) {
-    const t = allData[i];
-    if (t.is_correction) continue;                        // will be handled below
-    if (t.correct === false &&
-        i + 1 < allData.length && allData[i + 1].is_correction) {
-      // combine: initial wrong-press RT + correction-press RT
-      mergedData.push({ ...t, rt: t.rt + allData[i + 1].rt });
-    } else {
-      mergedData.push(t);
-    }
-  }
-
-  const byTag = tag => mergedData.filter(d => d.block === tag);
+  // Each trial's rt already spans stimulus onset through the eventual correct
+  // response (see makeTrial: force_correct_key_press keeps the trial open on
+  // an error, and on_finish records total elapsed time), matching how
+  // conventional IAT software times error trials. No merging needed.
+  const byTag = tag => allData.filter(d => d.block === tag);
 
   const sc = byTag(prefix + "_sc");
   const lc = byTag(prefix + "_lc");
@@ -611,7 +670,7 @@ function buildIAT(cfg) {
    ============================================================ */
 
 const IAT1 = {
-  name: "iat1", num: 1, group: GROUP,
+  name: "iat1", num: 1, group: groupForIAT("iat1"),
   targetA: { label: AGE_TARGET_A_LABEL, stimuli: YOUNG_FACES },
   targetB: { label: AGE_TARGET_B_LABEL, stimuli: OLD_FACES   },
   attrA:   { label: AGE_ATTR_A_LABEL,   words:   AGE_ATTR_A  },
@@ -634,7 +693,7 @@ const IAT1 = {
 };
 
 const IAT2 = {
-  name: "iat2", num: 2, group: GROUP,
+  name: "iat2", num: 2, group: groupForIAT("iat2"),
   targetA: { label: FS_TARGET_A_LABEL, stimuli: CURRENT_SELF },
   targetB: { label: FS_TARGET_B_LABEL, stimuli: FUTURE_SELF  },
   attrA:   { label: FS_ATTR_A_LABEL,   words:   FS_ATTR_A    },
@@ -658,7 +717,7 @@ const IAT2 = {
 };
 
 const IAT3 = {
-  name: "iat3", num: 3, group: GROUP,
+  name: "iat3", num: 3, group: groupForIAT("iat3"),
   targetA: { label: SE_TARGET_A_LABEL, stimuli: SELF_WORDS  },
   targetB: { label: SE_TARGET_B_LABEL, stimuli: OTHER_WORDS },
   attrA:   { label: SE_ATTR_A_LABEL,   words:   SE_ATTR_A   },
@@ -730,7 +789,7 @@ const jsPsych = initJsPsych({
   show_progress_bar:    true,
   message_progress_bar: "Progress",
   on_trial_start: function () {},
-  on_finish: function () {
+  on_finish: async function () {
     const allData = jsPsych.data.get().values();
 
     const s1 = computeDScore(allData, "iat1");
@@ -739,7 +798,6 @@ const jsPsych = initJsPsych({
 
     const params = new URLSearchParams({
       subject_ID:       SUBJECT_ID,
-      conditionOrder:   GROUP === "a" ? "c-ic" : "ic-c",
       iatOrder:         IAT_ORDER_LABEL,
 
       iat1_d:           s1.d,
@@ -748,6 +806,7 @@ const jsPsych = initJsPsych({
       iat1_pctCorrect:  s1.pctCorrect,
       iat1_propRT300:   s1.propRT300,
       iat1_exclude:     s1.exclude,
+      iat1_conditionOrder: IAT1.group === "a" ? "c-ic" : "ic-c",
       iat1_rtCompatS:   s1.rtCompatS,
       iat1_rtCompatL:   s1.rtCompatL,
       iat1_rtIncompatS: s1.rtIncompatS,
@@ -759,6 +818,7 @@ const jsPsych = initJsPsych({
       iat2_pctCorrect:  s2.pctCorrect,
       iat2_propRT300:   s2.propRT300,
       iat2_exclude:     s2.exclude,
+      iat2_conditionOrder: IAT2.group === "a" ? "c-ic" : "ic-c",
       iat2_rtCompatS:   s2.rtCompatS,
       iat2_rtCompatL:   s2.rtCompatL,
       iat2_rtIncompatS: s2.rtIncompatS,
@@ -770,11 +830,18 @@ const jsPsych = initJsPsych({
       iat3_pctCorrect:  s3.pctCorrect,
       iat3_propRT300:   s3.propRT300,
       iat3_exclude:     s3.exclude,
+      iat3_conditionOrder: IAT3.group === "a" ? "c-ic" : "ic-c",
       iat3_rtCompatS:   s3.rtCompatS,
       iat3_rtCompatL:   s3.rtCompatL,
       iat3_rtIncompatS: s3.rtIncompatS,
       iat3_rtIncompatL: s3.rtIncompatL,
     });
+
+    // Raw trial-by-trial data (every stimulus, key, rt, correct, block) —
+    // saved separately from the Qualtrics summary stats above so D-scores
+    // can be recomputed independently later. See SECTION 1b.
+    const idForFile = (SUBJECT_ID || EFFECTIVE_ID).replace(/[^a-zA-Z0-9_-]/g, "");
+    await saveRawDataToPipe(`${idForFile}_${Date.now()}`, jsPsych.data.get().csv());
 
     document.body.innerHTML =
       "<div style='display:flex;flex-direction:column;align-items:center;" +
