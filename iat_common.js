@@ -91,10 +91,19 @@ const DEBUG_MODE = URL_PARAMS.get("debug") === "1";
 /* Gated behind ?skip=1 in the URL rather than code you add/remove by hand —
    append &skip=1 to any page's link while testing the Qualtrics Survey Flow
    end-to-end, and it's simply absent for any real participant link that
-   doesn't carry that parameter. Call addSkipButtonIfEnabled(callback) from
-   each page's jsPsych on_trial_start (appending straight to document.body
-   before jsPsych has rendered anything can get it wiped/hidden by jsPsych's
-   own DOM setup, per past experience with this exact pattern). */
+   doesn't carry that parameter.
+
+   IMPORTANT: appended to document.documentElement (the <html> tag), NOT
+   document.body. When initJsPsych() runs without an explicit
+   display_element, it defaults to document.body and replaces
+   body.innerHTML entirely as part of its own setup — which silently wipes
+   out anything placed directly inside <body>, including a skip button, no
+   matter how carefully its insertion is timed relative to jsPsych's trial
+   lifecycle (this is exactly what made the old combined experiment's skip
+   button unreliable across many attempts). Living as a sibling of <body>
+   instead makes the button immune to that wipe regardless of timing, so
+   this only needs to be called once, synchronously, anywhere before
+   jsPsych.run() — no on_trial_start dance required. */
 
 const SKIP_MODE = URL_PARAMS.get("skip") === "1";
 
@@ -107,7 +116,7 @@ function addSkipButtonIfEnabled(onSkip) {
     "position:fixed;bottom:10px;right:10px;z-index:9999;padding:6px 14px;" +
     "font-size:13px;cursor:pointer;background:#fff;border:1px solid #999;color:#000;";
   btn.addEventListener("click", onSkip);
-  document.body.appendChild(btn);
+  document.documentElement.appendChild(btn);
 }
 
 async function saveRawDataToPipe(filenameBase, csvString) {

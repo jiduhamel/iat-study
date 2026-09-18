@@ -114,13 +114,12 @@ const IAT3 = {
 const jsPsych = initJsPsych({
   show_progress_bar:    true,
   message_progress_bar: "Progress",
-  on_trial_start: function () {
-    addSkipButtonIfEnabled(() => finishAndReturnToQualtrics(jsPsych, "iat3", IAT3.group));
-  },
   on_finish: function () {
     finishAndReturnToQualtrics(jsPsych, "iat3", IAT3.group);
   },
 });
+
+addSkipButtonIfEnabled(() => finishAndReturnToQualtrics(jsPsych, "iat3", IAT3.group));
 
 jsPsych.run([
   ...buildIAT(IAT3),
