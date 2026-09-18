@@ -104,7 +104,7 @@ function addSkipButtonIfEnabled(onSkip) {
   btn.id = "skip-btn";
   btn.textContent = "Skip (testing only)";
   btn.style.cssText =
-    "position:fixed;top:10px;right:10px;z-index:9999;padding:6px 14px;" +
+    "position:fixed;bottom:10px;right:10px;z-index:9999;padding:6px 14px;" +
     "font-size:13px;cursor:pointer;background:#fff;border:1px solid #999;color:#000;";
   btn.addEventListener("click", onSkip);
   document.body.appendChild(btn);
