@@ -25,7 +25,7 @@
 
 /* ---------- Qualtrics / participant ID ---------- */
 
-const QUALTRICS_SURVEY_URL = "TBD"; // TODO: paste the (shared) survey return URL once created
+const QUALTRICS_SURVEY_URL = "https://maastrichtuniversity.eu.qualtrics.com/jfe/form/SV_eA8urCCFn2SCTUa";
 
 const URL_PARAMS  = new URLSearchParams(window.location.search);
 const RESPONSE_ID = URL_PARAMS.get("Q_ResponseID") || URL_PARAMS.get("ResponseID") || URL_PARAMS.get("rid") || "";
