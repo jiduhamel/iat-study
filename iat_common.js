@@ -575,8 +575,15 @@ async function finishAndReturnToQualtrics(jsPsychInstance, iatName, conditionGro
     ...(extraParams || {}),
   };
 
+  // Stamp every trial row with an ISO completion timestamp so it's visible
+  // directly in the CSV content on OSF, not just inferred from file
+  // metadata (which DataPipe/OSF may not expose reliably).
+  const completedAt = new Date().toISOString();
+  jsPsychInstance.data.addProperties({ completedAt });
+
   const idForFile = (SUBJECT_ID || EFFECTIVE_ID).replace(/[^a-zA-Z0-9_-]/g, "");
-  await saveRawDataToPipe(`${idForFile}_${iatName}_${Date.now()}`, jsPsychInstance.data.get().csv());
+  const filenameTimestamp = completedAt.replace(/[:.]/g, "-"); // filename-safe
+  await saveRawDataToPipe(`${idForFile}_${iatName}_${filenameTimestamp}`, jsPsychInstance.data.get().csv());
 
   document.body.innerHTML =
     "<div style='display:flex;flex-direction:column;align-items:center;" +
