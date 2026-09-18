@@ -532,10 +532,29 @@ const finalTrial = {
 // Shared on_finish body for a single-IAT page: computes the D-score for
 // `iatName`, builds the iatN_* Qualtrics params (same field names as the
 // original combined experiment, so Survey Flow / data export stays
-// consistent regardless of which page a participant landed on), saves
-// the raw trial CSV to DataPipe, then redirects back to Qualtrics.
+// consistent regardless of which page a participant landed on), saves the
+// raw trial CSV to DataPipe, then hands the results back to Qualtrics.
 // `extraParams` (optional) lets a page add fields beyond the standard
 // d/da/db/... set (e.g. iat5's generationFailed flag).
+//
+// TWO HANDOFF MECHANISMS, chosen automatically based on how this page is
+// being viewed:
+//
+//   1. IFRAME (preferred): if this page is embedded in an <iframe> inside
+//      the Qualtrics question (window.parent !== window), results are sent
+//      via postMessage to the parent page, which never navigates away from
+//      qualtrics.com. This avoids a real problem with the alternate
+//      approach below: navigating out to a different domain (GitHub Pages)
+//      and back via redirect can lose Qualtrics' session cookie under
+//      SameSite cookie policy, causing the survey to restart instead of
+//      resume. Requires the Qualtrics question to embed this page in an
+//      iframe and listen for the message (see the project's Qualtrics
+//      build notes) rather than just linking to it.
+//
+//   2. REDIRECT (fallback): if this page is NOT in an iframe — e.g. opened
+//      directly while testing, including via the ?skip=1 button — it falls
+//      back to the old same-tab redirect to QUALTRICS_SURVEY_URL with the
+//      results as query params, same as before.
 async function finishAndReturnToQualtrics(jsPsychInstance, iatName, conditionGroup, extraParams) {
   const allData = jsPsychInstance.data.get().values();
   const s = computeDScore(allData, iatName);
@@ -555,7 +574,6 @@ async function finishAndReturnToQualtrics(jsPsychInstance, iatName, conditionGro
     [`${iatName}_rtIncompatL`]:    s.rtIncompatL,
     ...(extraParams || {}),
   };
-  const params = new URLSearchParams(paramObj);
 
   const idForFile = (SUBJECT_ID || EFFECTIVE_ID).replace(/[^a-zA-Z0-9_-]/g, "");
   await saveRawDataToPipe(`${idForFile}_${iatName}_${Date.now()}`, jsPsychInstance.data.get().csv());
@@ -569,7 +587,14 @@ async function finishAndReturnToQualtrics(jsPsychInstance, iatName, conditionGro
     "<p style='font-size:16px;color:#555'>Returning to the survey…</p>" +
     "</div>";
 
-  setTimeout(function () {
-    window.location.href = QUALTRICS_SURVEY_URL + "?" + params.toString();
-  }, 2000);
+  const inIframe = window.parent && window.parent !== window;
+  if (inIframe) {
+    const qualtricsOrigin = new URL(QUALTRICS_SURVEY_URL).origin;
+    window.parent.postMessage({ type: "IAT_COMPLETE", iatName, params: paramObj }, qualtricsOrigin);
+  } else {
+    const params = new URLSearchParams(paramObj);
+    setTimeout(function () {
+      window.location.href = QUALTRICS_SURVEY_URL + "?" + params.toString();
+    }, 2000);
+  }
 }
