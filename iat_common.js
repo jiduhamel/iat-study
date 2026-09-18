@@ -88,24 +88,27 @@ const DATAPIPE_EXPERIMENT_ID = "cDHk3ROLx3Vg";
 const DEBUG_MODE = URL_PARAMS.get("debug") === "1";
 
 /* ---------- Skip button (testing only) ---------- */
-/* Gated behind ?skip=1 in the URL rather than code you add/remove by hand —
-   append &skip=1 to any page's link while testing the Qualtrics Survey Flow
-   end-to-end, and it's simply absent for any real participant link that
-   doesn't carry that parameter.
+/* ============================================================
+   !!! ALWAYS ON RIGHT NOW — SKIP_MODE IS HARDCODED TO true !!!
+   ============================================================
+   Originally gated behind ?skip=1 in the URL, but since these pages now
+   run inside a Qualtrics-embedded <iframe> (the URL is Qualtrics' iframe
+   src, not something testers navigate to directly), adding &skip=1 to
+   four separate iframe src values every test round was too much friction.
+   Set unconditionally true instead, at the project's explicit request,
+   FOR THE DURATION OF SURVEY-FLOW TESTING ONLY.
 
-   IMPORTANT: appended to document.documentElement (the <html> tag), NOT
-   document.body. When initJsPsych() runs without an explicit
-   display_element, it defaults to document.body and replaces
-   body.innerHTML entirely as part of its own setup — which silently wipes
-   out anything placed directly inside <body>, including a skip button, no
-   matter how carefully its insertion is timed relative to jsPsych's trial
-   lifecycle (this is exactly what made the old combined experiment's skip
-   button unreliable across many attempts). Living as a sibling of <body>
-   instead makes the button immune to that wipe regardless of timing, so
-   this only needs to be called once, synchronously, anywhere before
-   jsPsych.run() — no on_trial_start dance required. */
+   >>> BEFORE running this with real students, change the line below
+   >>> back to `const SKIP_MODE = false;` (or delete this whole feature)
+   >>> and redeploy — otherwise every participant sees a working "skip
+   >>> the IAT and submit zeroed-out data" button. <<<
 
-const SKIP_MODE = URL_PARAMS.get("skip") === "1";
+   (Appended to document.documentElement, not document.body — see prior
+   commits for why: initJsPsych() without an explicit display_element
+   wipes body.innerHTML during setup, which silently destroys anything
+   placed directly in <body> regardless of insertion timing.) */
+
+const SKIP_MODE = true; // TODO: set to false before real data collection
 
 function addSkipButtonIfEnabled(onSkip) {
   if (!SKIP_MODE || document.getElementById("skip-btn")) return;
