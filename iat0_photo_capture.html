@@ -244,18 +244,42 @@ const photoDoneTrial = {
   data:           { block: "end" },
 };
 
+// A tiny 1x1 placeholder PNG — stands in for a real photo/generated image
+// so the skip button can seed localStorage and let iat5's actual IAT
+// trials be exercised too, without a camera or a working
+// FUTURE_SELF_API_URL (neither of which testing should depend on).
+const PLACEHOLDER_IMAGE_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
+function finishAndRedirect() {
+  const params = new URLSearchParams({
+    subject_ID:             SUBJECT_ID,
+    photoGenerationStatus:  photoGenerationFailed ? "failed" : "ok",
+  });
+  setTimeout(function () {
+    window.location.href = QUALTRICS_SURVEY_URL + "?" + params.toString();
+  }, 500);
+}
+
+function skipToEnd() {
+  try {
+    localStorage.setItem(FUTURE_SELF_STORAGE_KEY, JSON.stringify({
+      selfPhoto:    PLACEHOLDER_IMAGE_DATA_URL,
+      futureImages: [PLACEHOLDER_IMAGE_DATA_URL],
+    }));
+  } catch (e) {
+    console.error("Could not seed placeholder future-self data:", e);
+  }
+  finishAndRedirect();
+}
+
 const jsPsych = initJsPsych({
   show_progress_bar:    true,
   message_progress_bar: "Progress",
-  on_finish: function () {
-    const params = new URLSearchParams({
-      subject_ID:             SUBJECT_ID,
-      photoGenerationStatus:  photoGenerationFailed ? "failed" : "ok",
-    });
-    setTimeout(function () {
-      window.location.href = QUALTRICS_SURVEY_URL + "?" + params.toString();
-    }, 500);
+  on_trial_start: function () {
+    addSkipButtonIfEnabled(skipToEnd);
   },
+  on_finish: finishAndRedirect,
 });
 
 jsPsych.run([

@@ -175,14 +175,19 @@ const skippedTrial = {
 let IAT5 = null;
 let iat5GenerationFailed = false;
 
+function skipToEnd() {
+  const extra = { iat5_generationFailed: iat5GenerationFailed ? 1 : 0 };
+  if (iat5GenerationFailed) extra.iat5_exclude = 1;
+  finishAndReturnToQualtrics(jsPsych, "iat5", IAT5 ? IAT5.group : groupForIAT("iat5"), extra);
+}
+
 const jsPsych = initJsPsych({
   show_progress_bar:    true,
   message_progress_bar: "Progress",
-  on_finish: function () {
-    const extra = { iat5_generationFailed: iat5GenerationFailed ? 1 : 0 };
-    if (iat5GenerationFailed) extra.iat5_exclude = 1;
-    finishAndReturnToQualtrics(jsPsych, "iat5", IAT5 ? IAT5.group : groupForIAT("iat5"), extra);
+  on_trial_start: function () {
+    addSkipButtonIfEnabled(skipToEnd);
   },
+  on_finish: skipToEnd,
 });
 
 const futureSelfData = loadFutureSelfData();

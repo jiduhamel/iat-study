@@ -87,6 +87,29 @@ function groupForIAT(name) {
 const DATAPIPE_EXPERIMENT_ID = "cDHk3ROLx3Vg";
 const DEBUG_MODE = URL_PARAMS.get("debug") === "1";
 
+/* ---------- Skip button (testing only) ---------- */
+/* Gated behind ?skip=1 in the URL rather than code you add/remove by hand —
+   append &skip=1 to any page's link while testing the Qualtrics Survey Flow
+   end-to-end, and it's simply absent for any real participant link that
+   doesn't carry that parameter. Call addSkipButtonIfEnabled(callback) from
+   each page's jsPsych on_trial_start (appending straight to document.body
+   before jsPsych has rendered anything can get it wiped/hidden by jsPsych's
+   own DOM setup, per past experience with this exact pattern). */
+
+const SKIP_MODE = URL_PARAMS.get("skip") === "1";
+
+function addSkipButtonIfEnabled(onSkip) {
+  if (!SKIP_MODE || document.getElementById("skip-btn")) return;
+  const btn = document.createElement("button");
+  btn.id = "skip-btn";
+  btn.textContent = "Skip (testing only)";
+  btn.style.cssText =
+    "position:fixed;top:10px;right:10px;z-index:9999;padding:6px 14px;" +
+    "font-size:13px;cursor:pointer;background:#fff;border:1px solid #999;color:#000;";
+  btn.addEventListener("click", onSkip);
+  document.body.appendChild(btn);
+}
+
 async function saveRawDataToPipe(filenameBase, csvString) {
   if (DEBUG_MODE) {
     console.log(`[debug] Would save "${filenameBase}.csv" to DataPipe:`);
