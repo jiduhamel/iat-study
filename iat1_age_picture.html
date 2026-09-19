@@ -9,16 +9,17 @@
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
   <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
   <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;700&display=swap">
   <script src="iat_common.js"></script>
   <style>
     body, .jspsych-display-element, .jspsych-content-wrapper {
       background-color: #fff !important;
       color: #000 !important;
-      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-family: "Google Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
     .jspsych-content { max-width: 1400px; padding-top: 0.5em !important; padding-bottom: 0.5em !important; }
     .iat-word {
-      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-family: "Google Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 28px;
       font-weight: bold;
       color: #000;
@@ -28,7 +29,7 @@
     .iat-face  { max-height: 160px; max-width: 200px; object-fit: cover; }
     .iat-error { font-size: 90px; font-weight: bold; color: red; line-height: 1; }
     .instr-wrap {
-      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-family: "Google Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
       font-size: 15px;
       line-height: 1.5;
       max-width: 680px;
@@ -130,7 +131,7 @@ const preload = {
   type:              jsPsychPreload,
   images:            [...YOUNG_FACES, ...OLD_FACES].map(f => f.src),
   show_progress_bar: true,
-  message:           "<p style='color:#000;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:18px'>Loading images…</p>",
+  message:           "<p style='color:#000;font-family:\"Google Sans\",\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:18px'>Loading images…</p>",
   data:              { block: "preload" },
 };
 

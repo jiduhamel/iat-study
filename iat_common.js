@@ -195,7 +195,7 @@ function makeTrial(item, isAttr, keyAssoc, leftLbl, rightLbl, blockTag) {
 
   const errorReminder =
     `<div style="position:fixed;bottom:10px;left:0;right:0;text-align:center;` +
-    `font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;color:#888;">` +
+    `font-family:'Google Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;color:#888;">` +
     `If you make an error, a red X will appear. Press the other key to continue.</div>`;
 
   let stimOnset;
@@ -526,7 +526,7 @@ function buildIAT(cfg) {
 
 const finalTrial = {
   type:           jsPsychHtmlKeyboardResponse,
-  stimulus:       "<p style='font-family:Helvetica,Arial,sans-serif;font-size:22px;color:#000'>All done! Saving results…</p>",
+  stimulus:       "<p style='font-family:\"Google Sans\",Helvetica,Arial,sans-serif;font-size:22px;color:#000'>All done! Saving results…</p>",
   trial_duration: 1500,
   choices:        "NO_KEYS",
   data:           { block: "end" },
@@ -591,7 +591,7 @@ async function finishAndReturnToQualtrics(jsPsychInstance, iatName, conditionGro
   document.body.innerHTML =
     "<div style='display:flex;flex-direction:column;align-items:center;" +
     "justify-content:center;height:100vh;" +
-    "font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:22px;" +
+    "font-family:\"Google Sans\",\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:22px;" +
     "color:#000;background:#fff;'>" +
     "<p>Task complete. Thank you!</p>" +
     "<p style='font-size:16px;color:#555'>Returning to the survey…</p>" +
